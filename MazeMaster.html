@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link href="./coolstyle.css" rel="stylesheet" type="text/css">
+    <link href="./MazeMaster.css" rel="stylesheet" type="text/css">
+    <title>MazeMaster</title>
+
+</head>
+
+<body>
+    <div id="preload" class="hidden"></div>
+    <div class="win" id="setup">
+        <div id="load">
+        </div>
+        <img alt="CoolDoodle" class="fr logo" src="/Images/CoolDoodle-200p.png" width="200">
+        <h1 id="title"></h1>
+        <p>Design your own maze (no rooms) or dungeon (has rooms) using the parameters below. Export the PDF rendition
+            of your result.
+            Are there instructions anywhere? No. But you can always experiment.</p>
+        <div class="setup_container section" id="selector">
+            <fieldset>
+                <legend>
+                    Size:
+                </legend>
+                Grid dimensions:
+                <input name="gridsize" id="horizontalGrid" type="text" size="2" maxlength="2" value="24">
+                <span> X </span>
+                <input name="gridsize" id="verticalGrid" type="text" size="2" maxlength="2" value="32">
+                <br />
+                Grid size (px):
+                <input name="gridsize" id="gridsize" type="text" size="2" maxlength="2" value="32">
+                <br /><br />
+                <br /> WIDTH (px) = <span id="ENGINEgameWIDTH"></span> / 768<br /> HEIGHT (px) = <span
+                    id="ENGINEgameHEIGHT"></span> / 1024<br />
+                <br />
+            </fieldset>
+            <fieldset>
+                <legend>
+                    Renderer:
+                </legend>
+                <input type="radio" name="renderer" value="line">Line <br />
+                <input type="radio" name="renderer" value="block" checked="checked">Block<br />
+                <input type="checkbox" id="corr" value="corr" name="corr" checked="checked">Draw corridor gridline<br />
+            </fieldset>
+        </div>
+        <div class="setup_container section">
+            <fieldset>
+                <legend>
+                    Random Maze:
+                </legend>
+
+                <input type="checkbox" id="perfect" value="perfect" name="perfect">Perfect maze - one solution<br />
+                <input type="checkbox" id="some" value="some" name="some" checked="checked">Connect SOME dead ends, but
+                TRY to
+                leave
+                <input name="leave" id="leave" type="text" size="1" maxlength="2" value="8">
+                <br />
+                <input type="checkbox" id="polish" value="polish" name="polish">Connect All dead ends<br />
+                <input type="checkbox" id="glanz" value="glanz" name="glanz" checked="checked">Polish dead ends (size
+                1)<br />
+                <input type="checkbox" id="conn" value="conn" name="conn">Add connections to reach density<br />
+                Target density: <input name="density" id="density" type="text" size="5" value="0.600"
+                    disabled="disabled"><br />
+                <input type="checkbox" id="bias" value="bias" name="bias" checked="checked">Use bias (longer
+                forks)<br />
+                BIAS: <input name="bias_size" id="bias_size" type="text" size="2" maxlength="1" value="2"><br />
+                <input type="checkbox" id="open" value="open" name="open" checked="checked">External exits<br />
+                -------------------------------<br />
+                Dead ends left: <span id="de"></span><br />
+                Density (of space): <span id="real_density"></span><br />
+            </fieldset>
+        </div>
+        <div class="setup_container section">
+            <fieldset>
+                <legend>
+                    Random Dungeon:
+                </legend>
+                MIN_ROOM: <input name="MIN_ROOM" id="MIN_ROOM" type="text" size="1" maxlength="1" value="3">
+                MAX_ROOM: <input name="MAX_ROOM" id="MAX_ROOM" type="text" size="2" maxlength="2" value="6"><br>
+                MIN_PAD: <input name="MIN_PAD" id="MIN_PAD" type="text" size="1" maxlength="1" value="2">
+                ITERATIONS: <input name="ITERATIONS" id="ITERATIONS" type="text" size="1" maxlength="1" value="4"><br>
+                MIN_AREA:<span id="MIN_AREA"></span> MAX_AREA:<span id="MAX_AREA"></span><br><br>
+                <input type="checkbox" id="limit" value="limit" name="limit">Limit number of rooms<br />
+                Max rooms: <input name="limit_size" id="limit_size" type="text" size="2" maxlength="2" value="2"
+                    disabled="disabled"><br />
+                <input type="checkbox" id="singledoor" value="singledoor" name="singledoor">Single door to room<br />
+                <input type="checkbox" id="centered" value="centered" name="centered">Single centered room<br />
+            </fieldset>
+        </div>
+
+        <p class="cb" id="buttons"></p>
+        <p class="version cb" id="version"></p>
+    </div>
+
+    <div id="game" class="winTrans"></div>
+    <div id="bottom" class="cb" style="margin-top: 1024px"></div>
+    <div id="temp" class="hidden"></div>
+    <div id="temp2" class="hidden"></div>
+    <div id="spacer"></div>
+    <!-- JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+        integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+    <script src="./prototypeLIB_2_10.js" type="text/javascript"></script>
+    <script src="./engine_2_33.js" type="text/javascript"></script>
+    <script src="./maze_2_66.js" type="text/javascript"></script>
+    <script src="./assets_MazeMaster.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.debug.js" type="text/javascript"></script>
+    <script src="./MazeMaster.js" type="text/javascript"></script>
+
+</body>
+
+</html>

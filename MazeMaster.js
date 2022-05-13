@@ -34,23 +34,17 @@ var INI = {
   SPACE_Y: 1024
 };
 var PRG = {
-  VERSION: "1.01",
+  VERSION: "1.02.00",
   NAME: "MazeMaster",
-  INIT: function() {
-    console.log(
-      PRG.NAME +
-        " " +
-        PRG.VERSION +
-        " by Lovro Selic, (c) C00lSch00l 2020 on " +
-        navigator.userAgent
-    );
+  YEAR: "2020, 2022",
+  CSS: "color: #239AFF;",
+  INIT() {
+
+    console.log("%c**************************************************************************************************************************************", PRG.CSS);
+    console.log(`${PRG.NAME} ${PRG.VERSION} by Lovro Selic, (c) C00lSch00l ${PRG.YEAR} on ${navigator.userAgent}`);
+    console.log("%c**************************************************************************************************************************************", PRG.CSS);
     $("#title").html(PRG.NAME);
-    $("#version").html(
-      PRG.NAME +
-        " V" +
-        PRG.VERSION +
-        " <span style='font-size:14px'>&copy</span> C00lSch00l 2020"
-    );
+    $("#version").html(`${PRG.NAME} V${PRG.VERSION} <span style='font-size:14px'>&copy</span> C00lSch00l ${PRG.YEAR}`);
     $("input#toggleAbout").val("About " + PRG.NAME);
     $("#about fieldset legend").append(" " + PRG.NAME + " ");
 
@@ -59,13 +53,13 @@ var PRG = {
     ENGINE.readyCall = GAME.setup;
     ENGINE.init();
   },
-  setup: function() {
+  setup() {
     console.log("PRG.setup");
     $("#verticalGrid").change(GAME.updateWH);
     $("#horizontalGrid").change(GAME.updateWH);
     $("#gridsize").change(GAME.updateWH);
-    $("input[name='centered']").change(function(){
-      if (this.checked){
+    $("input[name='centered']").change(function () {
+      if (this.checked) {
         DUNGEON.SINGLE_CENTERED_ROOM = true;
         $("#limit_size").prop("disabled", true);
         DUNGEON.LIMIT_ROOMS = false;
@@ -74,22 +68,22 @@ var PRG = {
         DUNGEON.SINGLE_CENTERED_ROOM = false;
       }
     });
-    $("input[name='singledoor']").change(function(){
-      if (this.checked){
+    $("input[name='singledoor']").change(function () {
+      if (this.checked) {
         DUNGEON.SINGLE_DOOR = true;
       } else {
         DUNGEON.SINGLE_DOOR = false;
       }
     });
-    $("#limit_size").change(function(){
+    $("#limit_size").change(function () {
       if (isNaN(parseInt($("#limit_size").val(), 10))) $("#limit_size").val(2);
       if (parseInt($("#limit_size").val(), 10) < 1) {
         $("#limit_size").val(1);
       }
       DUNGEON.ROOM_LIMIT = parseInt($("#limit_size").val(), 10);
     });
-    $("input[name='limit']").change(function(){
-      if (this.checked){
+    $("input[name='limit']").change(function () {
+      if (this.checked) {
         $("#limit_size").prop("disabled", false);
         DUNGEON.LIMIT_ROOMS = true;
         DUNGEON.ROOM_LIMIT = parseInt($("#limit_size").val(), 10);
@@ -102,15 +96,15 @@ var PRG = {
         $("input[name='centered']")[0].checked = false;
       }
     });
-    $("input[name='open']").change(function(){
-      if (this.checked){
+    $("input[name='open']").change(function () {
+      if (this.checked) {
         MAZE.opened = true;
       } else {
         MAZE.opened = false;
       }
     });
-    $("input[name='perfect']").change(function(){
-      if (this.checked){
+    $("input[name='perfect']").change(function () {
+      if (this.checked) {
         $("input[name='some']")[0].checked = false;
         $("input[name='polish']")[0].checked = false;
         MAZE.connectDeadEnds = false;
@@ -120,23 +114,23 @@ var PRG = {
         $("#density").prop("disabled", true);
       }
     });
-    $("input[name='polish']").change(function() {
+    $("input[name='polish']").change(function () {
       if (this.checked) {
-        MAZE.connectDeadEnds = true; 
-        $("input[name='some']")[0].checked = false;  
+        MAZE.connectDeadEnds = true;
+        $("input[name='some']")[0].checked = false;
         $("input[name='perfect']")[0].checked = false;
       } else {
         MAZE.connectDeadEnds = false;
       }
     });
-    $("input[name='glanz']").change(function() {
+    $("input[name='glanz']").change(function () {
       if (this.checked) {
         MAZE.polishDeadEnds = true;
       } else {
         MAZE.polishDeadEnds = false;
       }
     });
-    $("input[name='some']").change(function() {
+    $("input[name='some']").change(function () {
       if (this.checked) {
         MAZE.connectSome = true;
         $("input[name='polish']")[0].checked = false;
@@ -145,7 +139,7 @@ var PRG = {
         MAZE.connectSome = false;
       }
     });
-    $("input[name='conn']").change(function() {
+    $("input[name='conn']").change(function () {
       if (this.checked) {
         $("input[name='perfect']")[0].checked = false;
         MAZE.addConnections = true;
@@ -155,10 +149,10 @@ var PRG = {
         $("#density").prop("disabled", true);
       }
     });
-    $("input[name='bias']").change(function() {
+    $("input[name='bias']").change(function () {
       if (this.checked) {
         MAZE.useBias = true;
-        $("#bias_size").prop("disabled", false);  
+        $("#bias_size").prop("disabled", false);
       } else {
         MAZE.useBias = false;
         $("#bias_size").prop("disabled", true);
@@ -203,7 +197,7 @@ var PRG = {
       DUNGEON.ITERATIONS = parseInt($("#ITERATIONS").val(), 10);
       GAME.updateDungeonStat();
     });
-    $("#limit_size").change(function(){
+    $("#limit_size").change(function () {
       if (isNaN(parseInt($("#limit_size").val(), 10))) $("#limit_size").val(1);
       if ($("#limit_size").val() < 1) $("#limit_size").val(1);
       if ($("#limit_size").val() > 10) $("#limit_size").val(10);
@@ -220,10 +214,10 @@ var PRG = {
     $("#selector input[name=renderer]").click(GAME.render);
     $("#corr").click(GAME.render);
   },
-  start: function() {
+  start() {
     console.log(PRG.NAME + " started.");
     $("#startGame").addClass("hidden");
-    $(document).keypress(function(event) {
+    $(document).keypress(function (event) {
       if (event.which === 32 || event.which === 13) {
         event.preventDefault();
       }
@@ -234,7 +228,7 @@ var PRG = {
 var GAME = {
   counter: 0,
   canvas: null,
-  start: function() {
+  start() {
     $("#bottom")[0].scrollIntoView();
     $("#random").prop("disabled", false);
     $("#dungeon").prop("disabled", false);
@@ -243,7 +237,7 @@ var GAME = {
     GAME.started = true;
     GAME.randomize();
   },
-  pacGrid: function() {
+  pacGrid() {
     let corr = $("input[name='corr']")[0].checked;
     ENGINE.resizeBOX("ROOM");
     $(ENGINE.gameWindowId).width(ENGINE.gameWIDTH + 4);
@@ -254,7 +248,7 @@ var GAME = {
     ENGINE.PACGRID.draw(pac, corr);
     GAME.canvas = ENGINE.PACGRID.layer.canvas;
   },
-  blockGrid: function() {
+  blockGrid() {
     let corr = $("input[name='corr']")[0].checked;
     ENGINE.resizeBOX("ROOM");
     $(ENGINE.gameWindowId).width(ENGINE.gameWIDTH + 4);
@@ -262,12 +256,10 @@ var GAME = {
     ENGINE.BLOCKGRID.draw(MAP.DUNGEON, corr);
     GAME.canvas = ENGINE.BLOCKGRID.layer.canvas;
   },
-  pdf: function() {
+  pdf() {
     GAME.counter++;
     let imgData = GAME.canvas.toDataURL("image/jpeg", 1.0);
-    let x = Math.round(
-      (INI.MAXWP - (GAME.canvas.width / INI.MAXW) * INI.MAXWP) / 2
-    );
+    let x = Math.round((INI.MAXWP - (GAME.canvas.width / INI.MAXW) * INI.MAXWP) / 2);
     let pdf = new jsPDF("p", "pt", "a4");
     let y = Math.round((SPRITE.CD113.height / INI.MAXH) * INI.MAXHP);
     let logo = ENGINE.imgToCanvas(SPRITE.CD113).toDataURL("image/jpeg", 1.0);
@@ -285,22 +277,12 @@ var GAME = {
     pdf.setFont("courier");
     pdf.setFontStyle("normal");
     let today = new Date();
-    let date =
-      today.getDate() +
-      "." +
-      (today.getMonth() + 1).toString().padStart(2, "0") +
-      "." +
-      today.getFullYear();
-    let text = `Maze created with ${PRG.NAME} V${PRG.VERSION} on ${date}.                 www.c00lsch00l.eu`;
+    let date = `${today.getDate()}.${(today.getMonth() + 1).toString().padStart(2, "0")}.${today.getFullYear()}`;
+    let text = `Maze created with ${PRG.NAME} V${PRG.VERSION} on ${date}                 www.c00lsch00l.eu`;
     pdf.text(text, 10, INI.MAXHP + fs); //pt
     pdf.save(`${INI.FILENAME + GAME.counter.toString()}.pdf`);
   },
-  newGrid: function() {
-    /*console.log(
-      "create grid from ",
-      $("#horizontalGrid").val(),
-      $("#verticalGrid").val()
-    );*/
+  newGrid() {
     MAP.level.grid = GRID.create(
       $("#horizontalGrid").val(),
       $("#verticalGrid").val()
@@ -308,14 +290,13 @@ var GAME = {
     MAP.level.width = $("#horizontalGrid").val();
     MAP.level.height = $("#verticalGrid").val();
   },
-  resize: function() {
+  resize() {
     MAP.level.width = $("#horizontalGrid").val();
     MAP.level.height = $("#verticalGrid").val();
   },
-  render: function() {
-    //console.log(DUNGEON, MAZE);
+  render() {
     let DEL = null;
-    if (Array.isArray(MAP.DUNGEON.deadEnds)){
+    if (Array.isArray(MAP.DUNGEON.deadEnds)) {
       DEL = MAP.DUNGEON.deadEnds.length;
     } else DEL = MAP.DUNGEON.deadEnds.size;
     var radio = $("#selector input[name=renderer]:checked").val();
@@ -333,7 +314,7 @@ var GAME = {
 
     $("#pdf").prop("disabled", false);
   },
-  randomize: function() {
+  randomize() {
     var randomMaze = MAZE.create(
       MAP.level.width,
       MAP.level.height,
@@ -344,20 +325,20 @@ var GAME = {
     MAP.DUNGEON = randomMaze;
     GAME.render();
   },
-  dungeon: function() {
+  dungeon() {
     var randomDungeon = DUNGEON.create(MAP.level.width, MAP.level.height);
     MAP.level.grid = randomDungeon.grid;
     MAP.DUNGEON = randomDungeon;
     console.log("creating random dungeon", MAP.DUNGEON);
     GAME.render();
   },
-  updateDungeonStat: function() {
+  updateDungeonStat() {
     DUNGEON.PAD = DUNGEON.MIN_ROOM + 2 * DUNGEON.MIN_PADDING; //minimum area
     DUNGEON.FREE = DUNGEON.MAX_ROOM + 4 * DUNGEON.MIN_PADDING; //not carving further
     $("#MIN_AREA").html(DUNGEON.PAD);
     $("#MAX_AREA").html(DUNGEON.FREE);
   },
-  updateWH: function() {
+  updateWH() {
     if (isNaN(parseInt($("#verticalGrid").val(), 10))) $("#verticalGrid").val(32);
     if (isNaN(parseInt($("#horizontalGrid").val(), 10))) $("#horizontalGrid").val(24);
     if (isNaN(parseInt($("#gridsize").val(), 10))) $("#gridsize").val(32);
@@ -376,10 +357,10 @@ var GAME = {
     }
     ENGINE.INI.GRIDPIX = parseInt($("#gridsize").val(), 10);
     //change grids
-    if ($("#horizontalGrid").val() * ENGINE.INI.GRIDPIX > INI.SPACE_X){
+    if ($("#horizontalGrid").val() * ENGINE.INI.GRIDPIX > INI.SPACE_X) {
       $("#horizontalGrid").val(Math.floor(INI.SPACE_X / ENGINE.INI.GRIDPIX));
     }
-    if ($("#verticalGrid").val() * ENGINE.INI.GRIDPIX > INI.SPACE_Y){
+    if ($("#verticalGrid").val() * ENGINE.INI.GRIDPIX > INI.SPACE_Y) {
       $("#verticalGrid").val(Math.floor(INI.SPACE_Y / ENGINE.INI.GRIDPIX));
     }
 
@@ -389,7 +370,7 @@ var GAME = {
     $("#ENGINEgameHEIGHT").html(ENGINE.gameHEIGHT);
     if (GAME.started) GAME.resize();
   },
-  setup: function() {
+  setup() {
     console.log("GAME SETUP started");
     GAME.updateWH();
     GAME.updateDungeonStat();
@@ -435,7 +416,7 @@ var GAME = {
     );
   }
 };
-$(function() {
+$(function () {
   PRG.INIT();
   PRG.setup();
   ENGINE.LOAD.preload();

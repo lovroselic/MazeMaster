@@ -1,3 +1,7 @@
+/*jshint browser: true */
+/*jshint -W097 */
+/*jshint -W117 */
+/*jshint -W061 */
 //Assets for MazeMaker
 "use strict";
 console.log("%cAssets for MazeMaker ready.", "color: orange");

@@ -35,7 +35,7 @@ var INI = {
   SPACE_Y: 1024
 };
 var PRG = {
-  VERSION: "1.02.02",
+  VERSION: "1.03",
   NAME: "MazeMaster",
   YEAR: "2020, 2022",
   CSS: "color: #239AFF;",

@@ -133,7 +133,6 @@ class MasterDungeon {
                 } else N = RND(2, 4);
             }
 
-
             this.connectToGrid(room, N, off);
             room.priority = 1 + q;
         }
@@ -569,9 +568,6 @@ class MasterDungeon {
                 let test = bridge.add(ENGINE.directions[z]);
                 if (this.GA.isEmpty(test)) {
                     let connections = this.hasConnections(bridge);
-                    /*if (connections === 2 && !this.isInAnyRoom(test)) {
-                        possible.push(bridge);
-                    }*/
                     if (connections === 2) {
                         if (!this.isInAnyRoom(test) && DUNGEON.REFUSE_CONNECTION_TO_ROOM) {
                             possible.push(bridge);
@@ -1199,10 +1195,7 @@ class Maze extends MasterDungeon {
         super(sizeX, sizeY);
         this.type = "MAZE";
         this.carveMaze(start);
-        console.log(
-            `%cMaze construction ${performance.now() - t0} ms.`,
-            DUNGEON.CSS
-        );
+        console.log(`%cMaze construction ${performance.now() - t0} ms.`, DUNGEON.CSS);
     }
 }
 class Arena extends MasterDungeon {
@@ -1391,12 +1384,7 @@ class Dungeon extends MasterDungeon {
 
         if (DUNGEON.SET_ROOMS) {
             if (this.rooms.length < DUNGEON.LOCK_LEVEL - 1) {
-                console.error(
-                    "too few rooms: ",
-                    this.rooms.length,
-                    "; for lock level",
-                    DUNGEON.LOCK_LEVEL
-                );
+                console.error("too few rooms: ", this.rooms.length, "; for lock level", DUNGEON.LOCK_LEVEL);
                 throw "SOLVE it Lovro!";
             }
 
@@ -1618,7 +1606,6 @@ class RatArena extends MasterDungeon {
         this.addConnections();
         this.density = this.measureDensity();
 
-        //
         delete this.areas;
         delete this.areaTree;
         console.log(`%cRat-Arena construction ${performance.now() - t0} ms.`, DUNGEON.CSS);
@@ -1669,7 +1656,6 @@ var RAT_ARENA = {
         DUNGEON.MAX_ROOM = 4;
         DUNGEON.MIN_PADDING = 2;
         DUNGEON.ITERATIONS = 5;
-        //DUNGEON.ITERATIONS = 4;
         DUNGEON.init();
         var rat_arena = new RatArena(sizeX, sizeY);
         return rat_arena;

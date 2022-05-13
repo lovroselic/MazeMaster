@@ -35,7 +35,7 @@ var INI = {
   SPACE_Y: 1024
 };
 var PRG = {
-  VERSION: "1.02.01",
+  VERSION: "1.02.02",
   NAME: "MazeMaster",
   YEAR: "2020, 2022",
   CSS: "color: #239AFF;",
@@ -234,7 +234,6 @@ var GAME = {
     $("#random").prop("disabled", false);
     $("#dungeon").prop("disabled", false);
     GAME.level = 1;
-    //GAME.newGrid();
     GAME.started = true;
     GAME.randomize();
   },
@@ -244,7 +243,6 @@ var GAME = {
     $(ENGINE.gameWindowId).width(ENGINE.gameWIDTH + 4);
     let pac = PacGrid.gridToPacGrid(MAP.DUNGEON);
     let lw = Math.round(ENGINE.INI.GRIDPIX / 12);
-    //ENGINE.PACGRID.configure(lw, "pacgrid", "#000", "#0000E0", "#0000FF");
     ENGINE.PACGRID.configure(lw, "pacgrid", "#FFF", "#000", "#666");
     ENGINE.PACGRID.draw(pac, corr);
     GAME.canvas = ENGINE.PACGRID.layer.canvas;
@@ -256,6 +254,14 @@ var GAME = {
     ENGINE.BLOCKGRID.configure("pacgrid", "#FFF", "#000");
     ENGINE.BLOCKGRID.draw(MAP.DUNGEON, corr);
     GAME.canvas = ENGINE.BLOCKGRID.layer.canvas;
+  },
+  textureGrid(){
+    let corr = $("input[name='corr']")[0].checked;
+    ENGINE.resizeBOX("ROOM");
+    $(ENGINE.gameWindowId).width(ENGINE.gameWIDTH + 4);
+    ENGINE.TEXTUREGRID.configure("pacgrid", "wall",'RockFloor', 'BrickWall4');
+    ENGINE.TEXTUREGRID.draw(MAP.DUNGEON, corr);
+    GAME.canvas = ENGINE.TEXTUREGRID.floorLayer.canvas;
   },
   pdf() {
     GAME.counter++;
@@ -302,6 +308,10 @@ var GAME = {
 
       case "block":
         GAME.blockGrid();
+        break;
+
+      case "texture":
+        GAME.textureGrid();
         break;
     }
 
@@ -406,7 +416,7 @@ var GAME = {
       "ROOM",
       ENGINE.gameWIDTH,
       ENGINE.gameHEIGHT,
-      ["pacgrid"],
+      ["pacgrid", "wall"],
       null
     );
   }

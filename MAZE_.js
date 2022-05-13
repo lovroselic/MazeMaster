@@ -7,7 +7,7 @@
 ///////////////////////Dungeon.js///////////////
 //                                            //
 //        Procedureal maze and dungeon        //
-//             generation: 3.01               //
+//             generation: 3.04               //
 //                                            //
 //    dependencies: Prototype LS, ENGINE      //
 ////////////////////////////////////////////////
@@ -702,8 +702,12 @@ class MasterDungeon {
         let missing = Math.floor(required) - dots;
         return missing;
     }
-    polishDeadEnds() {
-        //changed to polish also DE > size 1
+    polishDeadEnds(short = false) {
+        /**
+         * if true, only size-1 DE are polished, else any, but shortened for only 1 grid
+         */
+        let cons = 2;
+        if (short) cons = 3;
         this.deadEnds = [...this.deadEnds];
         for (let q = this.deadEnds.length - 1; q >= 0; q--) {
             let deadEnd = this.deadEnds[q];
@@ -711,12 +715,12 @@ class MasterDungeon {
             if (this.GA.isStair(deadEnd)) continue;
             let dir = this.deadEndDirection(deadEnd);
             let next = deadEnd.add(dir);
-            if (this.hasConnections(next) >= 2) {
+            if (this.hasConnections(next) >= cons) {
                 this.GA.toWall(deadEnd);
                 this.deadEnds.splice(q, 1);
-            }
-            if (this.isDeadEnd(next)) {
-                this.deadEnds.push(next);
+                if (this.isDeadEnd(next)) {
+                    this.deadEnds.push(next);
+                }
             }
         }
     }
@@ -1218,7 +1222,6 @@ class Arena extends MasterDungeon {
         let topLeft = center.add(new Vector(-ARENA.CENTRAL_ROOM_WALL_WIDTH, -ARENA.CENTRAL_ROOM_WALL_WIDTH));
         let W = 2 * ARENA.CENTRAL_ROOM_WALL_WIDTH + ARENA.CENTRAL_ROOM_SIZE;
         this.GA.rect(topLeft.x, topLeft.y, W, W, 2);
-        //let roomArea = new Area(topLeft.x, topLeft.y, ARENA.CENTRAL_ROOM_SIZE, ARENA.CENTRAL_ROOM_SIZE);
         let roomArea = new Area(center.x, center.y, ARENA.CENTRAL_ROOM_SIZE, ARENA.CENTRAL_ROOM_SIZE);
         let ignoreArea = new Area(topLeft.x, topLeft.y, W, W);
         let RoomObj = new Room(this.rooms.length + 1, roomArea, DUNGEON.LOCK_LEVELS[0]);
@@ -1635,9 +1638,9 @@ var MAZE = {
     bias: 2,
     targetDensity: 0.6,
     configure(maze, sizeX = null, sizeY = null, start = null) {
-        if (MAZE.polishDeadEnds) maze.polishDeadEnds();
         if (MAZE.connectSome) maze.connectSomeDeadEnds(MAZE.leaveDeadEnds);
-        if (MAZE.connectDeadEnds) maze.connectDeadEnds();
+        if (MAZE.connectDeadEnds) maze.eradicateDeadEnds();
+        if (MAZE.polishDeadEnds) maze.polishDeadEnds(true);
         if (MAZE.addConnections) maze.addConnections();
         if (MAZE.autoCalcDensity) maze.density = maze.measureDensity();
         if (MAZE.opened) {
@@ -1691,7 +1694,7 @@ var ARENA = {
     }
 };
 var DUNGEON = {
-    VERSION: "3.03",
+    VERSION: "3.04",
     CSS: "color: #f4ee42",
     REFUSE_CONNECTION_TO_ROOM: true,
     LIMIT_ROOMS: false,

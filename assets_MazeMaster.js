@@ -6,7 +6,7 @@
 "use strict";
 console.log("%cAssets for MazeMaker ready.", "color: orange");
 
-var LoadTextures = [];
+var LoadTextures = ["BrickWall4.jpg","RockFloor.jpg"];
 var LoadSprites = [
   { srcName: "CoolDoodle-text.png", name: "CD113" },
   { srcName: "CoolSchool-web-logo-100.png", name: "COOL" },

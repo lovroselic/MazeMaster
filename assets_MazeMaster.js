@@ -20,3 +20,4 @@ var LoadRotated = [];
 var LoadExtWasm = [];
 var LoadAudio = [];
 var LoadFonts = [];
+var LoadRotatedSheetSequences = [];

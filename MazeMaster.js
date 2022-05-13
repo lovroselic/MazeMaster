@@ -6,6 +6,7 @@
 /////////////////////////////////////////////////
 /*
  forked from: LevelEditor for Deep Down Into Darkness, v0.18.0
+ ported to gen 3 ENGINE, GRID
       
  to do:
       
@@ -34,7 +35,7 @@ var INI = {
   SPACE_Y: 1024
 };
 var PRG = {
-  VERSION: "1.02.00",
+  VERSION: "1.02.01",
   NAME: "MazeMaster",
   YEAR: "2020, 2022",
   CSS: "color: #239AFF;",
@@ -233,7 +234,7 @@ var GAME = {
     $("#random").prop("disabled", false);
     $("#dungeon").prop("disabled", false);
     GAME.level = 1;
-    GAME.newGrid();
+    //GAME.newGrid();
     GAME.started = true;
     GAME.randomize();
   },
@@ -282,14 +283,6 @@ var GAME = {
     pdf.text(text, 10, INI.MAXHP + fs); //pt
     pdf.save(`${INI.FILENAME + GAME.counter.toString()}.pdf`);
   },
-  newGrid() {
-    MAP.level.grid = GRID.create(
-      $("#horizontalGrid").val(),
-      $("#verticalGrid").val()
-    );
-    MAP.level.width = $("#horizontalGrid").val();
-    MAP.level.height = $("#verticalGrid").val();
-  },
   resize() {
     MAP.level.width = $("#horizontalGrid").val();
     MAP.level.height = $("#verticalGrid").val();
@@ -315,6 +308,8 @@ var GAME = {
     $("#pdf").prop("disabled", false);
   },
   randomize() {
+    MAP.level.width = $("#horizontalGrid").val();
+    MAP.level.height = $("#verticalGrid").val();
     var randomMaze = MAZE.create(
       MAP.level.width,
       MAP.level.height,

@@ -3,24 +3,19 @@
 /*jshint -W117 */
 /*jshint -W061 */
 "use strict";
+
 //////////////////engine.js/////////////////////////
 //                                                //
-//       ENGINE version 2.33  by LS               //
+//      ENGINE version 3.10        by LS          //
 //                                                //
 ////////////////////////////////////////////////////
+
 /*  
 
-Assumptions on external Classes:
-  GAME:
-    GAME.level point to level
-  MAP:
-    points to MAP object
-  HERO: 
-    point to protagonist
-
 TODO:
-    
+      
 */
+
 ////////////////////////////////////////////////////
 
 //vector definitions
@@ -28,16 +23,17 @@ var UP = new Vector(0, -1);
 var DOWN = new Vector(0, 1);
 var LEFT = new Vector(-1, 0);
 var RIGHT = new Vector(1, 0);
+var NOWAY = new Vector(0, 0);
 var UpRight = new Vector(1, -1);
 var UpLeft = new Vector(-1, -1);
 var DownRight = new Vector(1, 1);
 var DownLeft = new Vector(-1, 1);
-//
+
 var ENGINE = {
-  VERSION: "2.33.dev",
+  VERSION: "3.10",
   CSS: "color: #0FA",
   INI: {
-    ANIMATION_INTERVAL: 17,
+    ANIMATION_INTERVAL: 16,
     SPRITESHEET_HEIGHT: 48,
     SPRITESHEET_DEFAULT_WIDTH: 48,
     SPRITESHEET_DEFAULT_HEIGHT: 48,
@@ -46,10 +42,17 @@ var ENGINE = {
     GRIDPIX: 48,
     FADE_FRAMES: 50,
     COLLISION_SAFE: 48,
-    //PATH_ROUNDS: 999,
     PATH_ROUNDS: 1999,
     MAX_PATH: 999,
     MOUSE_IDLE: 3000
+  },
+  verbose: true,
+  setGridSize(size = 48) {
+    ENGINE.INI.GRIDPIX = size;
+  },
+  setSpriteSheetSize(size = 48) {
+    ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH = size;
+    ENGINE.INI.SPRITESHEET_DEFAULT_HEIGHT = size;
   },
   readyCall: null,
   start: null,
@@ -64,100 +67,99 @@ var ENGINE = {
   LOAD_H: 22,
   autostart: false,
   gameWindowId: "#game",
+  topCanvas: null,
   gameWIDTH: 960,
   gameHEIGHT: 768,
   sideWIDTH: 960,
   sideHEIGHT: 768,
   titleHEIGHT: 120,
   titleWIDTH: 960,
+  scoreWIDTH: 960,
+  scoreHEIGHT: 80,
   bottomHEIGHT: 40,
   bottomWIDTH: 960,
   mapWIDTH: 512,
   statusWIDTH: 312,
   currentTOP: 0,
   currentLEFT: 0,
+  mouseX: null,
+  mouseY: null,
   directions: [LEFT, UP, RIGHT, DOWN],
   corners: [UpLeft, UpRight, DownLeft, DownRight],
   circle: [UP, UpRight, RIGHT, DownRight, DOWN, DownLeft, LEFT, UpLeft],
   dirCircle: [UP, RIGHT, DOWN, LEFT],
   layersToClear: new Set(),
-  disableKey: function(key) {
-    $(document).keydown(function(event) {
+  disableKey(key) {
+    $(document).keydown(function (event) {
       if (event.which === ENGINE.KEY.map[key]) {
         event.preventDefault();
       }
     });
-    $(document).keyup(function(event) {
+    $(document).keyup(function (event) {
       if (event.which === ENGINE.KEY.map[key]) {
         event.preventDefault();
       }
     });
-    $(document).keypress(function(event) {
+    $(document).keypress(function (event) {
       if (event.which === ENGINE.KEY.map[key]) {
         event.preventDefault();
       }
     });
   },
-  hideMouse: function() {
+  hideMouse() {
     $("#game").css("cursor", "none");
     $("#game").on("mousemove", ENGINE.waitThenHideMouse);
   },
-  waitThenHideMouse: function() {
+  waitThenHideMouse() {
     $("#game").css("cursor", "default");
     $("#game").off("mousemove", ENGINE.waitThenHideMouse);
     setTimeout(ENGINE.hideMouse, ENGINE.INI.MOUSE_IDLE);
   },
-  showMouse: function() {
+  showMouse() {
     $("#game").off("mousemove", ENGINE.waitThenHideMouse);
     $("#game").css("cursor", "default");
   },
-  disableArrows: function() {
+  disableArrows() {
     ENGINE.disableKey("up");
     ENGINE.disableKey("down");
   },
-  init: function() {
+  init() {
     console.log(`%cInitializing ENGINE V${String(ENGINE.VERSION)}`, ENGINE.CSS);
-
-    $("#temp").append(
-      "<canvas id ='temp_canvas' width='" +
-        ENGINE.INI.sprite_maxW +
-        "' height='" +
-        ENGINE.INI.sprite_maxH +
-        "'></canvas>"
-    );
-    $("#temp2").append(
-      "<canvas id ='temp_canvas2' width='" +
-        ENGINE.INI.sprite_maxW +
-        "' height='" +
-        ENGINE.INI.sprite_maxH +
-        "'></canvas>"
-    );
+    $("#temp").append(`<canvas id ='temp_canvas' width='${ENGINE.INI.sprite_maxW}' height='${ENGINE.INI.sprite_maxH}'></canvas>`);
+    $("#temp2").append(`<canvas id ='temp_canvas2' width='${ENGINE.INI.sprite_maxW}' height='${ENGINE.INI.sprite_maxH}'></canvas>`);
     LAYER.temp = $("#temp_canvas")[0].getContext("2d");
     LAYER.temp2 = $("#temp_canvas2")[0].getContext("2d");
     VIEW.init();
   },
-  fill: function(ctx, pattern) {
+  fill(ctx, pattern) {
     let CTX = ctx;
     let pat = CTX.createPattern(pattern, "repeat");
     CTX.fillStyle = pat;
     CTX.fillRect(0, 0, CTX.canvas.width, CTX.canvas.height);
   },
-  clearLayer: function(layer) {
+  clearManylayers(layers) {
+    layers.forEach(item => ENGINE.layersToClear.add(item));
+    ENGINE.clearLayerStack();
+  },
+  clearLayer(layer) {
     let CTX = LAYER[layer];
     CTX.clearRect(0, 0, CTX.canvas.width, CTX.canvas.height);
   },
-  clearLayerStack: function() {
+  clearContext(CTX) {
+    CTX.clearRect(0, 0, CTX.canvas.width, CTX.canvas.height);
+  },
+  clearLayerStack() {
     let CLR = ENGINE.layersToClear.length;
     if (CLR === 0) return;
-    ENGINE.layersToClear.forEach(ENGINE.clearLayer);
+    ENGINE.layersToClear.forEach(layer => ENGINE.clearLayer(layer));
     ENGINE.layersToClear.clear();
   },
-  fillLayer: function(layer, colour) {
+  fillLayer(layer, colour) {
     let CTX = LAYER[layer];
     CTX.fillStyle = colour;
     CTX.fillRect(0, 0, CTX.canvas.width, CTX.canvas.height);
   },
-  resizeBOX: function(id, width, height) {
+  resizeBOX(id, width, height) {
     width = width || ENGINE.gameWIDTH;
     height = height || ENGINE.gameHEIGHT;
     let box = $("#" + id).children();
@@ -166,24 +168,29 @@ var ENGINE = {
       box[a].height = height;
     }
   },
-  addBOX: function(id, width, height, alias, type) {
-    //types null, side, fside
+  addBOX(id, width, height, alias, type) {
+    /** 
+     * types null, side, fside
+     * gw class: side by side windows
+     * gh class: windows below
+     */
+
     if (id === null) return;
     if (width === null) return;
     if (height === null) return;
     let layers = alias.length;
-    $(ENGINE.gameWindowId).append(
-      `<div id ='${id}' style='position: relative'></div>`
-    );
+    $(ENGINE.gameWindowId).append(`<div id ='${id}' style='position: relative'></div>`);
     if (type === "side" || type === "fside") {
-      $(`#${id}`).addClass("gw"); //adds gw class: side by side windows
+      $(`#${id}`).addClass("gw");
     } else {
-      $(`#${id}`).addClass("gh"); //adds gh class: windows below
+      $(`#${id}`).addClass("gh");
     }
     let prop;
     let canvasElement;
     for (let x = 0; x < layers; x++) {
-      canvasElement = `<canvas class='layer' id='${id}_canvas_${x}' width='${width}' height='${height}' style='z-index:${x}; top:${ENGINE.currentTOP}px; left:${ENGINE.currentLEFT}px'></canvas>`;
+      canvasElement = `<canvas class='layer' 
+      id='${id}_canvas_${x}' width='${width}' height='${height}' 
+      style='z-index:${x}; top:${ENGINE.currentTOP}px; left:${ENGINE.currentLEFT}px'></canvas>`;
 
       $(`#${id}`).append(canvasElement);
       prop = alias.shift();
@@ -199,40 +206,56 @@ var ENGINE = {
       ENGINE.currentLEFT = 0;
     }
   },
-  addCanvas: function(id, w, h) {
+  addCanvas(id, w, h) {
     //adds canvas to div
     let canvas = `<canvas id="c_${id}" width="${w}" height="${h}"></canvas>`;
     $(`#${id}`).append(canvas);
     LAYER[id] = $(`#c_${id}`)[0].getContext("2d");
   },
-  copyLayer: function(copyFrom, copyTo, orX, orY, orW, orH) {
+  copyLayer(copyFrom, copyTo, orX, orY, orW, orH) {
     let CTX = LAYER[copyTo];
     CTX.drawImage(LAYER[copyFrom].canvas, orX, orY, orW, orH, 0, 0, orW, orH);
   },
-  flattenLayers: function(src, dest) {
+  flattenLayers(src, dest) {
     let W = LAYER[dest].canvas.width;
     let H = LAYER[dest].canvas.height;
     ENGINE.copyLayer(src, dest, 0, 0, W, H, 0, 0, W, H);
   },
-  spriteDraw: function(layer, X, Y, image) {
-    let CX = Math.floor(X - image.width / 2);
-    let CY = Math.floor(Y - image.height / 2);
+  spriteDraw(layer, X, Y, image, offset = new Vector(0, 0)) {
+    let CX = offset.x + Math.floor(X - Math.floor(image.width / 2));
+    let CY = offset.y + Math.floor(Y - Math.floor(image.height / 2));
     let CTX = LAYER[layer];
     CTX.drawImage(image, CX, CY);
   },
-  drawToGrid: function(layer, grid, image) {
+  drawToGrid(layer, grid, image) {
     let p = GRID.gridToCoord(grid);
     ENGINE.draw(layer, p.x, p.y, image);
   },
-  spriteToGrid: function(layer, grid, image) {
+  spriteToGrid(layer, grid, image) {
     let p = GRID.gridToCenterPX(grid);
     ENGINE.spriteDraw(layer, p.x, p.y, image);
   },
-  draw: function(layer, X, Y, image) {
+  draw(layer, X, Y, image) {
     let CTX = LAYER[layer];
     CTX.drawImage(image, X, Y);
   },
-  drawPart: function(layer, X, Y, image, line) {
+  drawScaled(layer, X, Y, image, scale = 1) {
+    let CTX = LAYER[layer];
+    CTX.drawImage(image, 0, 0, image.width, image.height, X, Y, image.width * scale, image.height * scale);
+  },
+  drawBottomLeft(layer, X, Y, image) {
+    let CTX = LAYER[layer];
+    CTX.drawImage(image, X, Y - image.height);
+  },
+  drawBottomRight(layer, X, Y, image) {
+    let CTX = LAYER[layer];
+    CTX.drawImage(image, X - image.width, Y - image.height);
+  },
+  drawBottomCenter(layer, X, Y, image) {
+    let CTX = LAYER[layer];
+    CTX.drawImage(image, X - image.width / 2, Y - image.height);
+  },
+  drawPart(layer, X, Y, image, line) {
     let CTX = LAYER[layer];
     CTX.drawImage(
       image,
@@ -246,7 +269,7 @@ var ENGINE = {
       image.height - line
     );
   },
-  drawPool: function(layer, pool, sprite) {
+  drawPool(layer, pool, sprite) {
     let CTX = LAYER[layer];
     let PL = pool.length;
     if (PL === 0) return;
@@ -254,7 +277,7 @@ var ENGINE = {
       ENGINE.spriteDraw(layer, pool[i].x, pool[i].y, sprite);
     }
   },
-  trimCanvas: function(data) {
+  trimCanvas(data) {
     var top = 0,
       bottom = data.height,
       left = 0,
@@ -282,7 +305,7 @@ var ENGINE = {
       return true;
     }
   },
-  rotateImage: function(image, degree, newName) {
+  rotateImage(image, degree, newName) {
     let CTX = LAYER.temp;
     let CW = image.width;
     let CH = image.height;
@@ -306,14 +329,11 @@ var ENGINE = {
     CTX.canvas.width = TRIM.right - TRIM.left;
     CTX.canvas.height = TRIM.bottom - TRIM.top;
     CTX.putImageData(trimmed, 0, 0);
-    SPRITE[newName] = new Image();
-    SPRITE[newName].onload = ENGINE.creationSpriteCount;
-    SPRITE[newName].crossOrigin = "Anonymous";
-    SPRITE[newName].src = CTX.canvas.toDataURL("image/png");
-    SPRITE[newName].width = CTX.canvas.width;
-    SPRITE[newName].height = CTX.canvas.height;
+    const sprite = ENGINE.contextToSprite(newName, CTX);
+    sprite.onload = ENGINE.creationSpriteCount;
+    return sprite;
   },
-  setCollisionsafe: function(safe) {
+  setCollisionsafe(safe) {
     if (safe !== undefined) {
       ENGINE.INI.COLLISION_SAFE = safe;
     } else {
@@ -327,23 +347,27 @@ var ENGINE = {
       }
       ENGINE.INI.COLLISION_SAFE++;
     }
-    console.log(
-      `%cENGINE.INI.COLLISION_SAFE set to: ${ENGINE.INI.COLLISION_SAFE}`,
-      ENGINE.CSS
-    );
+    console.log(`%cENGINE.INI.COLLISION_SAFE set to: ${ENGINE.INI.COLLISION_SAFE}`, ENGINE.CSS);
   },
-  ready: function() {
+  ready() {
     ENGINE.setCollisionsafe();
     console.log("%cENGINE ready!", ENGINE.CSS);
-    $("#buttons").prepend("<input type='button' id='startGame' value='START'>");
     $("#load").addClass("hidden");
-    $("#startGame").on("click", PRG.start);
     ENGINE.readyCall.call();
     if (ENGINE.autostart) {
       if (ENGINE.start !== null) ENGINE.start();
     }
   },
-  intersectionCollision: function(actor1, actor2) {
+  lineIntersectsCircle(lineP1, lineP2, C, cR) {
+    let P1 = lineP1.sub(C);
+    let P2 = lineP2.sub(C);
+    let dx = P1.x - P2.x;
+    let dy = P1.y - P2.y;
+    let dr2 = dx ** 2 + dy ** 2;
+    let D = P1.x * P2.y - P2.x * P1.y;
+    return cR ** 2 * dr2 > D ** 2;
+  },
+  intersectionCollision(actor1, actor2) {
     if (actor1.class !== "bullet" && actor2.class !== "bullet") return;
     if (actor1.prevX === null || actor2.prevX === null) return;
 
@@ -385,7 +409,7 @@ var ENGINE = {
       line2.y2
     );
   },
-  lineIntersects: function(a, b, c, d, p, q, r, s) {
+  lineIntersects(a, b, c, d, p, q, r, s) {
     //https://stackoverflow.com/a/24392281/4154250
     var det, gamma, lambda;
     det = (c - a) * (s - q) - (r - p) * (d - b);
@@ -397,7 +421,7 @@ var ENGINE = {
       return 0 < lambda && lambda < 1 && 0 < gamma && gamma < 1;
     }
   },
-  pixPerfectCollision: function(actor1, actor2) {
+  pixPerfectCollision(actor1, actor2) {
     var w1 = parseInt(actor1.width / 2, 10);
     var w2 = parseInt(actor2.width / 2, 10);
     var h1 = parseInt(actor1.height / 2, 10);
@@ -431,12 +455,11 @@ var ENGINE = {
         return true;
       }
     }
-    //intersectionCollision check
     if (ENGINE.checkIntersection) {
       return ENGINE.intersectionCollision(actor1, actor2);
     } else return false;
   },
-  collision: function(actor1, actor2) {
+  collision(actor1, actor2) {
     var X = Math.abs(actor1.x - actor2.x);
     var Y = Math.abs(actor1.y - actor2.y);
     if (Y >= ENGINE.INI.COLLISION_SAFE) return false;
@@ -447,11 +470,12 @@ var ENGINE = {
     var h2 = parseInt(actor2.height / 2, 10);
 
     if (X >= w1 + w2 || Y >= h1 + h2) return false;
+
     if (ENGINE.pixelPerfectCollision) {
       return ENGINE.pixPerfectCollision(actor1, actor2);
     } else return true;
   },
-  collisionToBackground: function(actor, layer) {
+  collisionToBackground(actor, layer) {
     var CTX = layer;
     var maxSq = Math.max(actor.width, actor.height);
     var R = Math.ceil(0.5 * Math.sqrt(2 * Math.pow(maxSq, 2)));
@@ -500,7 +524,7 @@ var ENGINE = {
       return index;
     }
   },
-  drawLoadingGraph: function(counter) {
+  drawLoadingGraph(counter) {
     var count = ENGINE.LOAD[counter];
     var HMI = ENGINE.LOAD["HM" + counter];
     var text = counter;
@@ -529,7 +553,7 @@ var ENGINE = {
     );
     return;
   },
-  statusBar: function(CTX, x, y, w, h, value, max, color) {
+  statusBar(CTX, x, y, w, h, value, max, color) {
     CTX.save();
     ENGINE.resetShadow(CTX);
     let fs = h / 2;
@@ -550,13 +574,13 @@ var ENGINE = {
     CTX.fillText(`${value}/${max}`, tx, ty);
     CTX.restore();
   },
-  resetShadow: function(CTX) {
+  resetShadow(CTX) {
     CTX.shadowColor = "#000";
     CTX.shadowOffsetX = 0;
     CTX.shadowOffsetY = 0;
     CTX.shadowBlur = 0;
   },
-  spriteDump: function(layer, spriteList) {
+  spriteDump(layer, spriteList) {
     console.log("%c********* SPRITE DUMP *********", ENGINE.CSS);
     console.log(SPRITE);
     var x = 0;
@@ -565,10 +589,10 @@ var ENGINE = {
 
     if (spriteList === undefined) {
       var keys = Object.keys(SPRITE);
-      spriteList = keys.map(x => SPRITE[x]);
+      spriteList = keys.map((x) => SPRITE[x]);
     }
 
-    spriteList.forEach(function(q) {
+    spriteList.forEach(function (q) {
       ENGINE.draw(layer, x, y, q);
       x += q.width;
       if (q.height > dy) dy = q.height;
@@ -578,7 +602,7 @@ var ENGINE = {
       }
     });
   },
-  window: function(
+  window(
     width = ENGINE.gameWIDTH / 2,
     height = ENGINE.gameHEIGHT / 2,
     CTX = LAYER.text,
@@ -609,73 +633,69 @@ var ENGINE = {
     CTX.restore();
     return new Point(x, y);
   },
-  mouseOverOK: function(event, cname) {
-    var canvasOffset = $(cname).offset();
-    var offsetX = canvasOffset.left;
-    var offsetY = canvasOffset.top;
-    var mouseX = parseInt(event.pageX - offsetX - ENGINE.alertButton.okX, 10);
-    var mouseY = parseInt(event.pageY - offsetY - ENGINE.alertButton.okY, 10);
-    if (
-      mouseX >= 0 &&
-      mouseX < ENGINE.alertButton.width &&
-      mouseY >= 0 &&
-      mouseY < ENGINE.alertButton.heigth
-    ) {
-      $(cname).css("cursor", "pointer");
-    } else {
-      $(cname).css("cursor", "auto");
-    }
+  mouseOver(event) {
+    ENGINE.readMouse(event);
+    FORM.BUTTON.changeMousePointer(ENGINE.topCanvas);
   },
-  mouseOver: function(event, cname) {
+  mouseOverId(id) {
+    return $(`#${id}:hover`).length !== 0;
+  },
+  mouseClickId(id) {
+    return $(`#${id}:active`).length !== 0;
+  },
+  mousePointer(cname) {
     $(cname).css("cursor", "pointer");
   },
-  mouseClick: function(event, cname, func) {
-    var canvasOffset = $(cname).offset();
+  mouseGrab(cname) {
+    $(cname).css("cursor", "grab");
+  },
+  mouseGrabbing(cname) {
+    $(cname).css("cursor", "grabbing");
+  },
+  mouseDefault(cname) {
+    $(cname).css("cursor", "default");
+  },
+  readMouse(event) {
+    var canvasOffset = $(event.data.layer).offset();
     var offsetX = canvasOffset.left;
     var offsetY = canvasOffset.top;
     var mouseX = parseInt(event.pageX - offsetX, 10);
     var mouseY = parseInt(event.pageY - offsetY, 10);
     ENGINE.mouseX = mouseX;
     ENGINE.mouseY = mouseY;
-    func.call();
+  },
+  mouseClick(event) {
+    ENGINE.readMouse(event);
+    FORM.BUTTON.click();
     return;
   },
-  mouseClickOK: function(event, cname) {
-    var canvasOffset = $(cname).offset();
-    var offsetX = canvasOffset.left;
-    var offsetY = canvasOffset.top;
-    var mouseX = parseInt(event.pageX - offsetX - ENGINE.alertButton.okX, 10);
-    var mouseY = parseInt(event.pageY - offsetY - ENGINE.alertButton.okY, 10);
-    if (
-      mouseX >= 0 &&
-      mouseX < ENGINE.alertButton.width &&
-      mouseY >= 0 &&
-      mouseY < ENGINE.alertButton.heigth
-    ) {
-      $(cname).css("cursor", "auto");
-      $(cname).off();
-      ENGINE.alertMode = false;
-      ENGINE.clearLayer("alert");
-      $(document).keydown(ENGINE.GAME.checkKey);
-      $(document).keyup(ENGINE.GAME.clearKey);
-      GAME.continue(); //not DECOUPLED!!
-    }
+  mousePassClick(event, func) {
+    ENGINE.readMouse(event);
+    func.call();
   },
-  getCanvasNumber: function(id) {
+  getCanvasNumber(id) {
     var cnv = $("#" + id + " .layer");
     return cnv.length;
   },
-  getCanvasName: function(id) {
-    var CL = ENGINE.getCanvasNumber("ROOM");
-    var cname = "#ROOM_canvas_" + --CL;
+  getCanvasName(id) {
+    let CL = ENGINE.getCanvasNumber(id);
+    let cname = `#${id}_canvas_${--CL}`;
     return cname;
   },
-  cutGrid: function(layer, point) {
+  watchVisibility(func) {
+    document.addEventListener("visibilitychange", ENGINE._watch.bind(null, func), false);
+  },
+  _watch(func) {
+    if (document.visibilityState !== "visible") {
+      func.call();
+    }
+  },
+  cutGrid(layer, point) {
     var CTX = layer;
     CTX.clearRect(point.x, point.y, ENGINE.INI.GRIDPIX, ENGINE.INI.GRIDPIX);
     return;
   },
-  cutManyGrids: function(layer, point, N) {
+  cutManyGrids(layer, point, N) {
     var CTX = layer;
     CTX.clearRect(
       point.x,
@@ -685,7 +705,7 @@ var ENGINE = {
     );
     return;
   },
-  spreadAroundCenter: function(toDo, x, delta) {
+  spreadAroundCenter(toDo, x, delta) {
     var xS = [];
     var odd = toDo % 2;
     var n = 2;
@@ -738,59 +758,49 @@ var ENGINE = {
     NTX.putImageData(imgData, 0, 0);
     return ENGINE.contextToSprite(name, NTX);
   },
-  imgToTexture: function(obj) {
+  imgToTexture(obj) {
     TEXTURE[obj.name] = obj.img;
   },
-  imgToSprite: function(obj) {
+  imgToSprite(obj) {
     SPRITE[obj.name] = obj.img;
     SPRITE[obj.name].crossOrigin = "Anonymous";
     SPRITE[obj.name].width = obj.img.width;
     SPRITE[obj.name].height = obj.img.height;
   },
-  imgToCanvas: function(img) {
+  imgToCanvas(img) {
     LAYER.temp.canvas.width = img.width;
     LAYER.temp.canvas.height = img.height;
     LAYER.temp.drawImage(img, 0, 0);
     return LAYER.temp.canvas;
   },
-  extractImg: function(x, y, CTX) {
+  getImgData(img, offX = 0, offY = 0) {
+    const canvas = ENGINE.imgToCanvas(img);
+    const ctx = canvas.getContext("2d");
+    return ctx.getImageData(offX, offY, canvas.width, canvas.height);
+  },
+  extractImg(x, y, CTX) {
     var data, imgDATA;
     var NTX = LAYER.temp2;
-    data = CTX.getImageData(
-      x,
-      y,
-      ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH,
-      ENGINE.INI.SPRITESHEET_DEFAULT_HEIGHT
-    );
+    data = CTX.getImageData(x, y, ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH, ENGINE.INI.SPRITESHEET_DEFAULT_HEIGHT);
     NTX.canvas.width = ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH;
     NTX.canvas.height = ENGINE.INI.SPRITESHEET_DEFAULT_HEIGHT;
     NTX.putImageData(data, 0, 0);
-    imgDATA = NTX.getImageData(
-      0,
-      0,
-      ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH,
-      ENGINE.INI.SPRITESHEET_DEFAULT_HEIGHT
-    );
+    imgDATA = NTX.getImageData(0, 0, ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH, ENGINE.INI.SPRITESHEET_DEFAULT_HEIGHT);
     var TRIM = ENGINE.trimCanvas(imgDATA);
-    var trimmed = NTX.getImageData(
-      TRIM.left,
-      TRIM.top,
-      TRIM.right - TRIM.left,
-      TRIM.bottom - TRIM.top
-    );
+    var trimmed = NTX.getImageData(TRIM.left, TRIM.top, TRIM.right - TRIM.left, TRIM.bottom - TRIM.top);
     NTX.canvas.width = TRIM.right - TRIM.left;
     NTX.canvas.height = TRIM.bottom - TRIM.top;
     NTX.putImageData(trimmed, 0, 0);
     return NTX;
   },
-  drawSheet: function(spriteSheet) {
+  drawSheet(spriteSheet) {
     var CTX = LAYER.temp;
     CTX.canvas.width = spriteSheet.width;
     CTX.canvas.height = spriteSheet.height;
     ENGINE.draw("temp", 0, 0, spriteSheet);
     return CTX;
   },
-  contextToSprite: function(newName, NTX) {
+  contextToSprite(newName, NTX) {
     SPRITE[newName] = new Image();
     SPRITE[newName].crossOrigin = "Anonymous";
     SPRITE[newName].src = NTX.canvas.toDataURL("image/png");
@@ -798,7 +808,7 @@ var ENGINE = {
     SPRITE[newName].height = NTX.canvas.height;
     return SPRITE[newName];
   },
-  packToSprite: function(obj) {
+  packToSprite(obj) {
     var tag = ["left", "right", "front", "back"];
     var CTX = ENGINE.drawSheet(obj.img);
     let x, y;
@@ -808,54 +818,65 @@ var ENGINE = {
         x = q * ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH;
         y = W * ENGINE.INI.SPRITESHEET_DEFAULT_HEIGHT;
         let NTX = ENGINE.extractImg(x, y, CTX);
-        newName = obj.name + "_" + tag[W] + "_" + q;
+        newName = `${obj.name}_${tag[W]}_${q}`;
         ASSET[obj.name][tag[W]].push(ENGINE.contextToSprite(newName, NTX));
       }
     }
   },
-  seqToSprite: function(obj) {
+  seqToSprite(obj) {
     var CTX = ENGINE.drawSheet(obj.img);
     let x;
     let newName;
+    let names = [];
     for (var q = 0; q < obj.count; q++) {
       x = q * ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH;
       let NTX = ENGINE.extractImg(x, 0, CTX);
       newName = obj.name + "_" + q.toString().padStart(2, "0");
       ASSET[obj.name].linear.push(ENGINE.contextToSprite(newName, NTX));
+      names.push(newName);
     }
+    return names;
   },
-  sheetToSprite: function(obj) {
+  sheetToSprite(obj) {
     var CTX = ENGINE.drawSheet(obj.img);
     let x;
     let newName;
     for (var q = 0; q < obj.count; q++) {
       x = q * ENGINE.INI.SPRITESHEET_DEFAULT_WIDTH;
       let NTX = ENGINE.extractImg(x, 0, CTX);
-      newName = obj.name + "_" + q;
+      newName = `${obj.name}_${q}`;
       ASSET[obj.parent][obj.tag].push(ENGINE.contextToSprite(newName, NTX));
     }
   },
-  audioToAudio: function(obj) {
+  audioToAudio(obj) {
     AUDIO[obj.name] = obj.audio;
   },
-  linkToWasm: function(obj) {
+  linkToWasm(obj) {
     var bin = obj.exports;
+    let name = null;
     for (var fn in bin) {
       if (typeof bin[fn] === "function") {
-        WASM[fn] = bin[fn];
+        name = fn;
+        break;
       }
     }
+    WASM[name] = bin[name];
+    MEMORY[name] = bin.memory;
+  },
+  spriteToAsset(obj) {
+    ASSET[obj.asset].linear.push(SPRITE[obj.name]);
   },
   KEY: {
-    on: function() {
+    on() {
       $(document).keydown(ENGINE.GAME.checkKey);
       $(document).keyup(ENGINE.GAME.clearKey);
     },
-    off: function() {
+    off() {
       $(document).off("keyup", ENGINE.GAME.clearKey);
       $(document).off("keydown", ENGINE.GAME.checkKey);
     },
     map: {
+      shift: 16,
       ctrl: 17,
       back: 8,
       tab: 9,
@@ -875,9 +896,15 @@ var ENGINE = {
       D: 68,
       C: 67,
       H: 72,
-      M: 77
+      M: 77,
+      Q: 81,
+      E: 69,
+      W: 87,
+      S: 83,
+      LT: 60,
+      LTC: 226
     },
-    waitFor: function(func, key = "enter") {
+    waitFor(func, key = "enter") {
       if (ENGINE.GAME.stopAnimation) return;
       let map = ENGINE.GAME.keymap;
       if (map[ENGINE.KEY.map[key]]) {
@@ -886,11 +913,26 @@ var ENGINE = {
         ENGINE.GAME.keymap[ENGINE.KEY.map[key]] = false;
         return;
       }
+    },
+    dirFromKey() {
+      //[LEFT, UP, RIGHT, DOWN]
+      let pressed = [0, 0, 0, 0];
+      if (ENGINE.GAME.keymap[ENGINE.KEY.map.left]) pressed[0] = 1;
+      if (ENGINE.GAME.keymap[ENGINE.KEY.map.up]) pressed[1] = 1;
+      if (ENGINE.GAME.keymap[ENGINE.KEY.map.right]) pressed[2] = 1;
+      if (ENGINE.GAME.keymap[ENGINE.KEY.map.down]) pressed[3] = 1;
+      let test = pressed.reduce((a, b) => a + b, 0);
+      if (test !== 1) return null;
+      for (const [index, key] of pressed.entries()) {
+        if (key === 1) return ENGINE.directions[index];
+      }
+      return null;
     }
   },
   GAME: {
     running: false,
     keymap: {
+      16: false, //shift
       17: false, //CTRL
       37: false, //LEFT
       38: false, //UP
@@ -909,29 +951,37 @@ var ENGINE = {
       8: false, //back
       9: false, //tab
       72: false, //h
-      77: false //m
+      77: false, //m
+      81: false, //q
+      69: false, //e
+      87: false, //w
+      83: false, //s
+      60: false, //lt
+      226: false //lt-chrome
     },
-    clearAllKeys: function() {
+    clearAllKeys() {
       for (var key in ENGINE.GAME.keymap) {
         ENGINE.GAME.keymap[key] = false;
       }
     },
-    clearKey: function(e) {
+    clearKey(e) {
       e = e || window.event;
       if (e.keyCode in ENGINE.GAME.keymap) {
         ENGINE.GAME.keymap[e.keyCode] = false;
       }
     },
-    checkKey: function(e) {
+    checkKey(e) {
       e = e || window.event;
       if (e.keyCode in ENGINE.GAME.keymap) {
         ENGINE.GAME.keymap[e.keyCode] = true;
         e.preventDefault();
       }
     },
-    run: function(func, nextFunct) {
+    run(func, nextFunct) {
       ENGINE.GAME.running = true;
-      if (!ENGINE.GAME.frame.start) ENGINE.GAME.frame.start = performance.now();
+      if (ENGINE.GAME.frame.start === null) {
+        ENGINE.GAME.frame.start = performance.now();
+      }
       ENGINE.GAME.frame.delta = performance.now() - ENGINE.GAME.frame.start;
       if (ENGINE.GAME.frame.delta >= ENGINE.INI.ANIMATION_INTERVAL) {
         if (ENGINE.GAME.stopAnimation) {
@@ -943,7 +993,7 @@ var ENGINE = {
           ENGINE.GAME.running = false;
           return;
         }
-        func.call();
+        func.call(null, ENGINE.GAME.frame.delta);
         ENGINE.GAME.frame.start = null;
       }
       if (!ENGINE.GAME.stopAnimation) {
@@ -958,15 +1008,17 @@ var ENGINE = {
         return;
       }
     },
-    start: function() {
-      $("#DOWN")[0].scrollIntoView();
+    start(interval) {
+      $(window).scrollTop($("#game").offset().top);
       ENGINE.GAME.stopAnimation = false;
       ENGINE.GAME.started = Date.now();
       ENGINE.GAME.frame = {};
       ENGINE.GAME.frame.start = null;
+      ENGINE.KEY.on();
+      ENGINE.INI.ANIMATION_INTERVAL = interval;
     },
     ANIMATION: {
-      start: function(wrapper) {
+      start(wrapper) {
         console.log(
           `%cENGINE.GAME.ANIMATION.start --> ${wrapper.name}`,
           "color: #0F0"
@@ -974,10 +1026,10 @@ var ENGINE = {
         ENGINE.GAME.stopAnimation = false;
         ENGINE.GAME.run(wrapper, ENGINE.GAME.ANIMATION.queue);
       },
-      stop: function() {
+      stop() {
         ENGINE.GAME.stopAnimation = true;
       },
-      next: function(functionPointer) {
+      next(functionPointer) {
         if (ENGINE.GAME.running) {
           ENGINE.GAME.ANIMATION.addToQueue(functionPointer);
           ENGINE.GAME.ANIMATION.stop();
@@ -985,10 +1037,10 @@ var ENGINE = {
           ENGINE.GAME.ANIMATION.start(functionPointer);
         }
       },
-      addToQueue: function(functionPointer) {
+      addToQueue(functionPointer) {
         ENGINE.GAME.ANIMATION.STACK.push(functionPointer);
       },
-      queue: function() {
+      queue() {
         ENGINE.GAME.ANIMATION.stop();
         setTimeout(() => {
           console.log(`%cGame running? ${ENGINE.GAME.running}`, ENGINE.CSS);
@@ -1004,10 +1056,13 @@ var ENGINE = {
           }
         }, ENGINE.INI.ANIMATION_INTERVAL);
       },
-      waitThen: function(func, n = 1) {
+      waitThen(func, n = 1) {
         setTimeout(func, ENGINE.INI.ANIMATION_INTERVAL * n);
       },
-      STACK: []
+      STACK: [],
+      resetTimer() {
+        ENGINE.GAME.frame.start = null;
+      }
     }
   },
   VIEWPORT: {
@@ -1015,18 +1070,21 @@ var ENGINE = {
       x: 0,
       y: 0
     },
-    setMax: function(max) {
+    setMax(max) {
       ENGINE.VIEWPORT.max.x = max.x;
       ENGINE.VIEWPORT.max.y = max.y;
     },
     changed: false,
-    reset: function() {
+    reset() {
       ENGINE.VIEWPORT.vx = 0;
       ENGINE.VIEWPORT.vy = 0;
     },
     vx: 0,
     vy: 0,
-    change: function(from, to) {
+    report() {
+      console.log("VIEWPORT:", ENGINE.VIEWPORT.vx, ENGINE.VIEWPORT.vy);
+    },
+    change(from, to) {
       ENGINE.copyLayer(
         from,
         to,
@@ -1036,7 +1094,7 @@ var ENGINE = {
         ENGINE.gameHEIGHT
       );
     },
-    check: function(actor, max = ENGINE.VIEWPORT.max) {
+    check(actor, max = ENGINE.VIEWPORT.max) {
       var vx = actor.x - ENGINE.gameWIDTH / 2;
       var vy = actor.y - ENGINE.gameHEIGHT / 2;
       if (vx < 0) vx = 0;
@@ -1049,45 +1107,29 @@ var ENGINE = {
         ENGINE.VIEWPORT.changed = true;
       }
     },
-    alignTo: function(actor) {
+    alignTo(actor) {
       actor.vx = actor.x - ENGINE.VIEWPORT.vx;
       actor.vy = actor.y - ENGINE.VIEWPORT.vy;
     }
   },
   TEXT: {
-    font: "Arcade",
-    fs: "40",
-    setFS: function(fs) {
-      if (isNaN(fs)) fs = 40;
-      ENGINE.TEXT.fs = fs.toString();
+    setRD(rd) {
+      ENGINE.TEXT.RD = rd;
     },
-    text: function(
-      text,
-      x,
-      y,
-      layer = "text",
-      fs = ENGINE.TEXT.fs,
-      font = ENGINE.TEXT.font
-    ) {
-      var CTX = LAYER[layer];
-      CTX.fillStyle = "#FFF";
-      CTX.font = fs + "px " + font;
-      CTX.shadowColor = "#333333";
-      CTX.shadowOffsetX = 3;
-      CTX.shadowOffsetY = 3;
-      CTX.shadowBlur = 3;
+    RD: null,
+    text(text, x, y) {
+      let CTX = ENGINE.TEXT.RD.layer;
       CTX.textAlign = "center";
       CTX.fillText(text, x, y);
     },
-    centeredText: function(
-      text,
-      y,
-      layer = "text",
-      fs = ENGINE.TEXT.fs,
-      font = ENGINE.TEXT.font
-    ) {
-      var x = ENGINE.gameWIDTH / 2;
-      ENGINE.TEXT.text(text, x, y, layer, fs, font);
+    centeredText(text, width, y) {
+      let x = (width / 2) | 0;
+      ENGINE.TEXT.text(text, x, y);
+    },
+    leftText(text, x, y) {
+      var CTX = ENGINE.TEXT.RD.layer;
+      CTX.textAlign = "left";
+      CTX.fillText(text, x, y);
     }
   },
   LOAD: {
@@ -1101,6 +1143,8 @@ var ENGINE = {
     Fonts: 0,
     Packs: 0,
     SheetSequences: 0,
+    RotSeq: 0,
+    HMRotSeq: null,
     HMSheetSequences: null,
     HMFonts: null,
     HMSequences: null,
@@ -1111,7 +1155,9 @@ var ENGINE = {
     HMWASM: null,
     HMSounds: null,
     HMPacks: null,
-    preload: function() {
+    preload() {
+      console.time("preloading");
+      console.group("preload");
       console.log("%cPreloading ...", ENGINE.CSS);
       var AllLoaded = Promise.all([
         loadTextures(),
@@ -1121,29 +1167,22 @@ var ENGINE = {
         loadPacks(),
         loadSheetSequences(),
         loadRotated(),
+        loadRotatedSheetSequences(),
         loadingSounds(),
         loadWASM(),
         loadAllFonts()
-      ]).then(function() {
+      ]).then(function () {
         console.log("%cAll assets loaded and ready!", ENGINE.CSS);
         console.log("%c****************************", ENGINE.CSS);
-        //console.log("SPRITE", SPRITE);
+        console.groupEnd("preload");
+        console.timeEnd("preloading");
         ENGINE.ready();
       });
-
       return;
 
       function appendCanvas(name) {
         let id = "preload_" + name;
-        $("#load").append(
-          "<canvas id ='" +
-            id +
-            "' width='" +
-            ENGINE.LOAD_W +
-            "' height='" +
-            ENGINE.LOAD_H +
-            "'></canvas>"
-        );
+        $("#load").append(`<canvas id ='${id}' width='${ENGINE.LOAD_W}' height='${ENGINE.LOAD_H}'></canvas>`);
         LAYER.PRELOAD[name] = $("#" + id)[0].getContext("2d");
       }
       function loadTextures(arrPath = LoadTextures) {
@@ -1152,9 +1191,9 @@ var ENGINE = {
         if (ENGINE.LOAD.HMTextures) appendCanvas("Textures");
 
         const temp = Promise.all(
-          arrPath.map(img => loadImage(img, "Textures"))
-        ).then(function(obj) {
-          obj.forEach(function(el) {
+          arrPath.map((img) => loadImage(img, "Textures"))
+        ).then(function (obj) {
+          obj.forEach(function (el) {
             ENGINE.imgToTexture(el);
           });
         });
@@ -1166,9 +1205,9 @@ var ENGINE = {
         if (ENGINE.LOAD.HMSprites) appendCanvas("Sprites");
 
         const temp = Promise.all(
-          arrPath.map(img => loadImage(img, "Sprites"))
-        ).then(function(obj) {
-          obj.forEach(function(el) {
+          arrPath.map((img) => loadImage(img, "Sprites"))
+        ).then(function (obj) {
+          obj.forEach(function (el) {
             ENGINE.imgToSprite(el);
           });
         });
@@ -1178,16 +1217,13 @@ var ENGINE = {
         console.log(`%c ...loading ${arrPath.length} sequences`, ENGINE.CSS);
         var toLoad = [];
 
-        arrPath.forEach(function(el) {
+        arrPath.forEach(function (el) {
+          ASSET[el.name] = new LiveSPRITE("1D", []);
           for (let i = 1; i <= el.count; i++) {
             toLoad.push({
-              srcName:
-                el.srcName +
-                "_" +
-                i.toString().padStart(2, "0") +
-                "." +
-                el.type,
-              name: el.name + (i - 1).toString().padStart(2, "0")
+              srcName: el.srcName + "_" + i.toString().padStart(2, "0") + "." + el.type,
+              name: el.name + (i - 1).toString().padStart(2, "0"),
+              asset: el.name
             });
           }
         });
@@ -1196,10 +1232,11 @@ var ENGINE = {
         if (ENGINE.LOAD.HMSequences) appendCanvas("Sequences");
 
         const temp = Promise.all(
-          toLoad.map(img => loadImage(img, "Sequences"))
-        ).then(function(obj) {
-          obj.forEach(function(el) {
+          toLoad.map((img) => loadImage(img, "Sequences"))
+        ).then(function (obj) {
+          obj.forEach(function (el) {
             ENGINE.imgToSprite(el);
+            ENGINE.spriteToAsset(el);
           });
         });
         return temp;
@@ -1207,7 +1244,7 @@ var ENGINE = {
       function loadPacks(arrPath = LoadPacks) {
         console.log(`%c ...loading ${arrPath.length} packs`, ENGINE.CSS);
         var toLoad = [];
-        arrPath.forEach(function(el) {
+        arrPath.forEach(function (el) {
           ASSET[el.name] = new LiveSPRITE("4D", [], [], [], []);
           toLoad.push({
             srcName: el.srcName,
@@ -1218,9 +1255,9 @@ var ENGINE = {
         ENGINE.LOAD.HMPacks = toLoad.length;
         if (ENGINE.LOAD.HMPacks) appendCanvas("Packs");
         const temp = Promise.all(
-          toLoad.map(img => loadImage(img, "Packs"))
-        ).then(function(obj) {
-          obj.forEach(function(el) {
+          toLoad.map((img) => loadImage(img, "Packs"))
+        ).then(function (obj) {
+          obj.forEach(function (el) {
             ENGINE.packToSprite(el);
           });
         });
@@ -1230,7 +1267,7 @@ var ENGINE = {
         console.log(`%c ...loading ${arrPath.length} sheets`, ENGINE.CSS);
         var toLoad = [];
         var tag = ["left", "right", "front", "back", ...addTag];
-        arrPath.forEach(function(el) {
+        arrPath.forEach(function (el) {
           ASSET[el.name] = new LiveSPRITE("4D", [], [], [], []);
           for (let q = 0, TL = tag.length; q < TL; q++) {
             toLoad.push({
@@ -1246,21 +1283,18 @@ var ENGINE = {
         ENGINE.LOAD.HMSheets = toLoad.length;
         if (ENGINE.LOAD.HMSheets) appendCanvas("Sheets");
         const temp = Promise.all(
-          toLoad.map(img => loadImage(img, "Sheets"))
-        ).then(function(obj) {
-          obj.forEach(function(el) {
+          toLoad.map((img) => loadImage(img, "Sheets"))
+        ).then(function (obj) {
+          obj.forEach(function (el) {
             ENGINE.sheetToSprite(el);
           });
         });
         return temp;
       }
       function loadSheetSequences(arrPath = LoadSheetSequences) {
-        console.log(
-          `%c ...loading ${arrPath.length} sheet sequences`,
-          ENGINE.CSS
-        );
+        console.log(`%c ...loading ${arrPath.length} sheet sequences`, ENGINE.CSS);
         var toLoad = [];
-        arrPath.forEach(function(el) {
+        arrPath.forEach(function (el) {
           ASSET[el.name] = new LiveSPRITE("1D", []);
           toLoad.push({
             srcName: el.srcName,
@@ -1271,36 +1305,70 @@ var ENGINE = {
         ENGINE.LOAD.HMSheetSequences = toLoad.length;
         if (ENGINE.LOAD.HMSheetSequences) appendCanvas("SheetSequences");
         const temp = Promise.all(
-          toLoad.map(img => loadImage(img, "SheetSequences"))
-        ).then(function(obj) {
-          obj.forEach(function(el) {
+          toLoad.map((img) => loadImage(img, "SheetSequences"))
+        ).then(function (obj) {
+          obj.forEach(function (el) {
             ENGINE.seqToSprite(el);
           });
         });
         return temp;
       }
       function loadRotated(arrPath = LoadRotated) {
-        console.log(
-          `%c ...loading ${arrPath.length} rotated sprites`,
-          ENGINE.CSS
-        );
+        console.log(`%c ...loading ${arrPath.length} rotated sprites`, ENGINE.CSS);
         ENGINE.LOAD.HMRotated = arrPath.length;
         if (ENGINE.LOAD.HMRotated) appendCanvas("Rotated");
 
         const temp = Promise.all(
-          arrPath.map(img => loadImage(img, "Rotated"))
-        ).then(function(obj) {
-          obj.forEach(function(el) {
-            for (
-              let q = el.rotate.first;
-              q <= el.rotate.last;
-              q += el.rotate.step
-            ) {
+          arrPath.map((img) => loadImage(img, "Rotated"))
+        ).then(function (obj) {
+          obj.forEach(function (el) {
+            for (let q = el.rotate.first; q <= el.rotate.last; q += el.rotate.step) {
               ENGINE.rotateImage(el.img, q, el.name + "_" + q);
             }
           });
         });
         return temp;
+      }
+      function loadRotatedSheetSequences(arrPath = LoadRotatedSheetSequences) {
+        console.log(`%c ...loading ${arrPath.length} rotated sheet sequences`, ENGINE.CSS);
+        var toLoad = [];
+        arrPath.forEach(function (el) {
+          ASSET[el.name] = new LiveSPRITE("1D", []);
+          toLoad.push({ srcName: el.srcName, name: el.name, count: el.count, rotate: el.rotate });
+        });
+        ENGINE.LOAD.HMRotSeq = toLoad.length;
+        if (ENGINE.LOAD.HMRotSeq) appendCanvas("RotSeq");
+        const temp = Promise.all(
+          toLoad.map((img) => loadImage(img, "RotSeq"))
+        )
+          .then(function (obj) {
+            let ready;
+            obj.forEach(function (el) {
+              let assetNames = ENGINE.seqToSprite(el);
+              let createdSprites = ASSET[el.name].linear;
+
+              ready = Promise.all(createdSprites.map((sprite) => isReady(sprite)))
+                .then(
+                  (obj) => {
+                    obj.forEach((S, i) => {
+                      for (let angle = el.rotate.first; angle <= el.rotate.last; angle += el.rotate.step) {
+                        let name = `${assetNames[i]}_${angle}`;
+                        ENGINE.rotateImage(S, angle, name);
+                      }
+                    });
+                  }
+                );
+            });
+            return ready;
+          });
+        return temp;
+      }
+      function isReady(sprite) {
+        return new Promise((resolve, reject) => {
+          sprite.onload = () => {
+            resolve(sprite);
+          };
+        });
       }
       function loadWASM(arrPath = LoadExtWasm) {
         var LoadIntWasm = []; //internal hard coded ENGINE requirements
@@ -1309,9 +1377,9 @@ var ENGINE = {
         ENGINE.LOAD.HMWASM = toLoad.length;
         if (ENGINE.LOAD.HMWASM) appendCanvas("WASM");
         const temp = Promise.all(
-          toLoad.map(wasm => loadWebAssembly(wasm, "WASM"))
-        ).then(instance => {
-          instance.forEach(function(el) {
+          toLoad.map((wasm) => loadWebAssembly(wasm, "WASM"))
+        ).then((instance) => {
+          instance.forEach(function (el) {
             ENGINE.linkToWasm(el);
           });
         });
@@ -1324,9 +1392,9 @@ var ENGINE = {
         if (ENGINE.LOAD.HMSounds) appendCanvas("Sounds");
 
         const temp = Promise.all(
-          arrPath.map(audio => loadAudio(audio, "Sounds"))
-        ).then(function(obj) {
-          obj.forEach(function(el) {
+          arrPath.map((audio) => loadAudio(audio, "Sounds"))
+        ).then(function (obj) {
+          obj.forEach(function (el) {
             ENGINE.audioToAudio(el);
           });
         });
@@ -1336,9 +1404,9 @@ var ENGINE = {
         ENGINE.LOAD.HMFonts = arrPath.length;
         if (ENGINE.LOAD.HMFonts) {
           appendCanvas("Fonts");
-          const temp = Promise.all(arrPath.map(font => loadFont(font))).then(
-            function(obj) {
-              obj.map(x => document.fonts.add(x));
+          const temp = Promise.all(arrPath.map((font) => loadFont(font))).then(
+            function (obj) {
+              obj.map((x) => document.fonts.add(x));
               ENGINE.LOAD.Fonts = ENGINE.LOAD.HMFonts;
               ENGINE.drawLoadingGraph("Fonts");
             }
@@ -1347,11 +1415,11 @@ var ENGINE = {
       }
 
       function loadImage(srcData, counter, dir = ENGINE.SOURCE) {
-        var srcName, name, count, tag, parent, rotate;
+        var srcName, name, count, tag, parent, rotate, asset;
         switch (typeof srcData) {
           case "string":
             srcName = srcData;
-            name = srcName.substr(0, srcName.indexOf("."));
+            name = srcName.substring(0, srcName.indexOf("."));
             break;
           case "object":
             srcName = srcData.srcName;
@@ -1360,6 +1428,7 @@ var ENGINE = {
             tag = srcData.tag || null;
             parent = srcData.parent || null;
             rotate = srcData.rotate || null;
+            asset = srcData.asset || null;
             break;
           default:
             console.error(`ENGINE: loadImage srcData ERROR: ${typeof srcData}`);
@@ -1374,14 +1443,15 @@ var ENGINE = {
             count: count,
             tag: tag,
             parent: parent,
-            rotate: rotate
+            rotate: rotate,
+            asset: asset
           };
-          img.onload = function() {
+          img.onload = function () {
             ENGINE.LOAD[counter]++;
             ENGINE.drawLoadingGraph(counter);
             resolve(obj);
           };
-          img.onerror = err => resolve(err);
+          img.onerror = (err) => reject(err);
           img.crossOrigin = "Anonymous";
           img.src = src;
         });
@@ -1409,12 +1479,15 @@ var ENGINE = {
             audio: audio,
             name: name
           };
-          audio.oncanplaythrough = function() {
+
+          audio.oncanplaythrough = function () {
             ENGINE.LOAD[counter]++;
             ENGINE.drawLoadingGraph(counter);
             resolve(obj);
           };
-          audio.onerror = err => resolve(err);
+
+          audio.onerror = (err) => resolve(err);
+          audio.preload = "auto";
           audio.src = src;
           audio.load();
         });
@@ -1422,9 +1495,9 @@ var ENGINE = {
       function loadWebAssembly(fileName, counter) {
         fileName = ENGINE.WASM_SOURCE + fileName;
         return fetch(fileName)
-          .then(response => response.arrayBuffer())
-          .then(bits => WebAssembly.compile(bits))
-          .then(module => {
+          .then((response) => response.arrayBuffer())
+          .then((bits) => WebAssembly.compile(bits))
+          .then((module) => {
             ENGINE.LOAD[counter]++;
             ENGINE.drawLoadingGraph(counter);
             return new WebAssembly.Instance(module);
@@ -1438,9 +1511,29 @@ var ENGINE = {
       }
     }
   },
+  FRAME_COUNTERS: {
+    STACK: [],
+    display() {
+      console.table(ENGINE.FRAME_COUNTERS.STACK, ["id", "count", "onFrame", "onEnd"]);
+    },
+    update() {
+      ENGINE.FRAME_COUNTERS.STACK.forEach((counter) => counter.update());
+    },
+    clear() {
+      ENGINE.FRAME_COUNTERS.STACK.clear();
+    },
+    remove(timerID) {
+      for (let i = ENGINE.FRAME_COUNTERS.STACK.length - 1; i >= 0; i--) {
+        if (ENGINE.FRAME_COUNTERS.STACK[i].id === timerID) {
+          ENGINE.FRAME_COUNTERS.STACK.splice(i, 1);
+          break;
+        }
+      }
+    }
+  },
   TIMERS: {
     STACK: [],
-    remove: function(timerID) {
+    remove(timerID) {
       for (let i = ENGINE.TIMERS.STACK.length - 1; i >= 0; i--) {
         if (ENGINE.TIMERS.STACK[i].id === timerID) {
           ENGINE.TIMERS.STACK.splice(i, 1);
@@ -1448,7 +1541,15 @@ var ENGINE = {
         }
       }
     },
-    index: function(timerID) {
+    access(timerID) {
+      let index = this.index(timerID);
+      if (index === -1) {
+        console.error("Timer does not exists:", timerID);
+        return null;
+      }
+      return this.STACK[index];
+    },
+    index(timerID) {
       for (let i = ENGINE.TIMERS.STACK.length - 1; i >= 0; i--) {
         if (ENGINE.TIMERS.STACK[i].id === timerID) {
           return i;
@@ -1456,33 +1557,89 @@ var ENGINE = {
       }
       return -1;
     },
-    exists: function(timerID) {
+    exists(timerID) {
       if (ENGINE.TIMERS.index(timerID) >= 0) {
         return true;
       } else return false;
     },
-    stop: function() {
-      ENGINE.TIMERS.STACK.forEach(timer => timer.stop());
+    stop() {
+      ENGINE.TIMERS.STACK.forEach((timer) => timer.stop());
     },
-    start: function() {
-      ENGINE.TIMERS.STACK.forEach(timer => timer.continue());
+    start() {
+      ENGINE.TIMERS.STACK.forEach((timer) => timer.continue());
     },
-    update: function() {
-      ENGINE.TIMERS.STACK.forEach(timer => timer.update());
+    update() {
+      ENGINE.TIMERS.STACK.forEach((timer) => timer.update());
     },
-    display: function() {
-      console.table(ENGINE.TIMERS.STACK, [
-        "id",
-        "delta",
-        "now",
-        "kwargs",
-        "func",
-        "value"
-      ]);
+    display() {
+      console.table(ENGINE.TIMERS.STACK, ["id", "delta", "now", "kwargs", "func", "value"]);
+    },
+    clear() {
+      ENGINE.TIMERS.STACK.clear();
+    }
+  },
+  TEXTUREGRID: {
+    floorLayer: null,
+    floorLayerString: null,
+    wallLayer: null,
+    wallLayerString: null,
+    floorTexture: null,
+    floorTextureString: null,
+    wallTexture: null,
+    wallTextureString: null,
+    configure(floorLayer, wallLayer, floorTexture, wallTexture) {
+      ENGINE.TEXTUREGRID.setLayers(floorLayer, wallLayer);
+      ENGINE.TEXTUREGRID.setTextures(floorTexture, wallTexture);
+    },
+    setLayers(floorLayer, wallLayer) {
+      ENGINE.TEXTUREGRID.floorLayer = LAYER[floorLayer];
+      ENGINE.TEXTUREGRID.floorLayerString = floorLayer;
+      ENGINE.TEXTUREGRID.wallLayer = LAYER[wallLayer];
+      ENGINE.TEXTUREGRID.wallLayerString = wallLayer;
+    },
+    setTextures(floorTexture, wallTexture) {
+      ENGINE.TEXTUREGRID.floorTexture = TEXTURE[floorTexture];
+      ENGINE.TEXTUREGRID.floorTextureString = floorTexture;
+      ENGINE.TEXTUREGRID.wallTexture = TEXTURE[wallTexture];
+      ENGINE.TEXTUREGRID.wallTextureString = wallTexture;
+    },
+    draw(maze, corr = false) {
+      let t0 = performance.now();
+      ENGINE.fill(
+        ENGINE.TEXTUREGRID.floorLayer,
+        ENGINE.TEXTUREGRID.floorTexture
+      );
+      ENGINE.fill(ENGINE.TEXTUREGRID.wallLayer, ENGINE.TEXTUREGRID.wallTexture);
+
+      for (let x = 0; x < maze.width; x++) {
+        for (let y = 0; y < maze.height; y++) {
+          let grid = new Grid(x, y);
+          if (maze.GA.isEmpty(grid)) {
+            let point = GRID.gridToCoord(grid);
+            ENGINE.cutGrid(ENGINE.TEXTUREGRID.wallLayer, point);
+            if (corr) {
+              let CTX = ENGINE.TEXTUREGRID.wallLayer;
+              CTX.setLineDash([1, 1]);
+              CTX.strokeStyle = "#EEE";
+              CTX.strokeRect(
+                point.x,
+                point.y,
+                ENGINE.INI.GRIDPIX,
+                ENGINE.INI.GRIDPIX
+              );
+            }
+          }
+        }
+      }
+      ENGINE.flattenLayers(ENGINE.TEXTUREGRID.wallLayerString, ENGINE.TEXTUREGRID.floorLayerString);
+      if (ENGINE.verbose) {
+        console.log(`%cTEXTUREGRID draw ${performance.now() - t0} ms`, ENGINE.CSS);
+      }
     }
   },
   PACGRID: {
-    draw: function(pacgrid, corr) {
+    draw(pacgrid, corr) {
+      let t0 = performance.now();
       let sizeX = pacgrid.width;
       let sizeY = pacgrid.height;
       let CTX = ENGINE.PACGRID.layer;
@@ -1495,20 +1652,23 @@ var ENGINE = {
         CTX.shadowOffsetX = 1;
         CTX.shadowOffsetY = 1;
         CTX.shadowBlur = 1;
+      } else {
+        ENGINE.resetShadow(CTX);
       }
       CTX.strokeStyle = ENGINE.PACGRID.color;
       CTX.lineWidth = ENGINE.PACGRID.lineWidth;
+      CTX.lineJoin = "round";
       for (let x = 0; x < sizeX; x++) {
         for (let y = 0; y < sizeY; y++) {
           let index = y * sizeX + x;
           let data = pacgrid.map[index];
           if (data === 0) {
-            if (corr){
+            if (corr) {
               CTX.save();
-              CTX.setLineDash([1,2]);
+              CTX.setLineDash([1, 2]);
               CTX.lineWidth = 1;
               CTX.globalAlpha = 0.5;
-              dashRect(x,y);
+              dashRect(x, y);
               CTX.restore();
               continue;
             } else continue;
@@ -1552,8 +1712,10 @@ var ENGINE = {
           }
         }
       }
+      if (ENGINE.verbose)
+        console.log(`%cPACGRID draw ${performance.now() - t0} ms`, ENGINE.CSS);
 
-      function dashRect(x,y){
+      function dashRect(x, y) {
         let px = x * ENGINE.INI.GRIDPIX;
         let py = y * ENGINE.INI.GRIDPIX;
         CTX.strokeRect(px, py, ENGINE.INI.GRIDPIX, ENGINE.INI.GRIDPIX);
@@ -1592,24 +1754,24 @@ var ENGINE = {
     round: 4,
     layer: null,
     layerString: null,
-    setLayer: function(layer) {
+    setLayer(layer) {
       ENGINE.PACGRID.layerString = layer;
       ENGINE.PACGRID.layer = LAYER[layer];
     },
     color: null,
-    setColor: function(color) {
+    setColor(color) {
       ENGINE.PACGRID.color = color;
     },
     lineWidth: 2,
-    setLineWidth: function(w) {
-      if (w <= 0 || w > 4) return;
+    setLineWidth(w) {
+      if (w <= 0 || w > 48) return;
       ENGINE.PACGRID.lineWidth = w;
     },
     background: null,
-    setBackground: function(back) {
+    setBackground(back) {
       ENGINE.PACGRID.background = back;
     },
-    configure: function(width, layer, background, color, shadow = null) {
+    configure(width, layer, background, color, shadow = null) {
       ENGINE.PACGRID.setLayer(layer);
       ENGINE.PACGRID.setLineWidth(width, layer);
       ENGINE.PACGRID.setColor(color);
@@ -1618,56 +1780,191 @@ var ENGINE = {
     }
   },
   BLOCKGRID: {
-    draw: function(maze, corr) {
+    draw(maze, corr) {
+      let t0 = performance.now();
       var CTX = ENGINE.BLOCKGRID.layer;
       ENGINE.clearLayer(ENGINE.BLOCKGRID.layerString);
       let sizeX = parseInt(maze.width, 10);
       let sizeY = parseInt(maze.height, 10);
       for (let x = 0; x < sizeX; x++) {
         for (let y = 0; y < sizeY; y++) {
-          if (maze.grid[y].charAt(x) === "1") {
-            ENGINE.BLOCKGRID.wall(x, y, CTX);
+          let grid = new Grid(x, y);
+          let value = maze.GA.getValue(grid);
+          value &=
+            2 ** maze.GA.gridSizeBit - 1 - MAPDICT.FOG - MAPDICT.RESERVED;
+          if (maze.GA.isMazeWall(grid)) {
+            value &= 2 ** maze.GA.gridSizeBit - 1 - MAPDICT.WALL;
+            ENGINE.BLOCKGRID.wall(x, y, CTX, value);
           } else {
-            ENGINE.BLOCKGRID.corr(x, y, CTX, corr);
+            value &=
+              2 ** maze.GA.gridSizeBit -
+              1 -
+              MAPDICT.RESERVED -
+              MAPDICT.START_POSITION;
+            if (value & MAPDICT.STAIR) {
+              value = MAPDICT.STAIR;
+            }
+            ENGINE.BLOCKGRID.corr(x, y, CTX, value, corr);
           }
         }
       }
+      if (ENGINE.verbose)
+        console.log(`%cBLOCKGRID draw ${performance.now() - t0} ms`, ENGINE.CSS);
     },
-    wall: function(x, y, CTX) {
-      CTX.fillStyle = "#999";
+    wall(x, y, CTX, value) {
+      let FS;
+      switch (value) {
+        case MAPDICT.DOOR:
+          FS = "brown";
+          break;
+        default:
+          FS = "#999";
+          break;
+      }
+      CTX.fillStyle = FS;
       let px = x * ENGINE.INI.GRIDPIX;
       let py = y * ENGINE.INI.GRIDPIX;
       CTX.fillRect(px, py, ENGINE.INI.GRIDPIX, ENGINE.INI.GRIDPIX);
     },
-    corr: function(x, y, CTX, corr) {
-      CTX.fillStyle = "#FFF";
+    corr(x, y, CTX, value, corr) {
+      let FS;
+      switch (value) {
+        case MAPDICT.ROOM:
+          FS = "#DDD";
+          break;
+        case MAPDICT.DOOR:
+          FS = "#C8E6C9";
+          break;
+        case MAPDICT.STAIR:
+          FS = "#87CEFA";
+          break;
+        default:
+          FS = "#FFF";
+          break;
+      }
+      CTX.fillStyle = FS;
       let px = x * ENGINE.INI.GRIDPIX;
       let py = y * ENGINE.INI.GRIDPIX;
       CTX.fillRect(px, py, ENGINE.INI.GRIDPIX, ENGINE.INI.GRIDPIX);
-      if (corr){
-        CTX.setLineDash([1,1]);
+      if (corr) {
+        CTX.setLineDash([1, 1]);
         CTX.strokeStyle = "#000";
         CTX.strokeRect(px, py, ENGINE.INI.GRIDPIX, ENGINE.INI.GRIDPIX);
       }
     },
     layer: null,
     layerString: null,
-    setLayer: function(layer) {
+    setLayer(layer) {
       ENGINE.BLOCKGRID.layerString = layer;
       ENGINE.BLOCKGRID.layer = LAYER[layer];
     },
     color: null,
-    setColor: function(color) {
+    setColor(color) {
       ENGINE.BLOCKGRID.color = color;
     },
     background: null,
-    setBackground: function(back) {
+    setBackground(back) {
       ENGINE.BLOCKGRID.background = back;
     },
-    configure: function(layer, background, color) {
+    configure(layer, background, color) {
       ENGINE.BLOCKGRID.setLayer(layer);
       ENGINE.BLOCKGRID.setColor(color);
       ENGINE.BLOCKGRID.setBackground(background);
+    }
+  },
+  VECTOR2D: {
+    layer: null,
+    layerString: null,
+    configure(layer) {
+      ENGINE.VECTOR2D.setLayer(layer);
+    },
+    setLayer(layer) {
+      ENGINE.VECTOR2D.layerString = layer;
+      ENGINE.VECTOR2D.layer = LAYER[layer];
+    },
+    draw(player = PLAYER) {
+      //always draws player 2D representation
+      let CTX = ENGINE.VECTOR2D.layer;
+      CTX.fillStyle = "#000";
+      CTX.strokeStyle = "#000";
+      CTX.lineWidth = 1;
+      CTX.miterLimit = 1;
+      CTX.lineJoin = "round";
+      let point = player.pos.toPoint();
+      CTX.pixelAtPoint(point);
+      let r = Math.round((ENGINE.INI.GRIDPIX * player.size) / 2);
+      CTX.beginPath();
+      CTX.arc(point.x, point.y, r, 0, 2 * Math.PI);
+      CTX.moveTo(point.x, point.y);
+      let end = point.translate(player.dir, r);
+      CTX.lineTo(end.x, end.y);
+      CTX.stroke();
+    },
+    drawBlock(monster) {
+      monster.actor.updateOrientationWidths();
+      let CTX = ENGINE.VECTOR2D.layer;
+      CTX.fillStyle = "#000";
+      CTX.strokeStyle = "#000";
+      if (monster.type === "Missile") {
+        CTX.strokeStyle = "#F00";
+      }
+      CTX.lineWidth = 1;
+      let point = monster.moveState.pos.toPoint();
+      let dir = monster.moveState.dir;
+      let x =
+        point.x -
+        (monster.actor.frontWidth / 2) * Math.abs(dir.y) -
+        (monster.actor.sideWidth / 2) * Math.abs(dir.x);
+      let y =
+        point.y -
+        (monster.actor.frontWidth / 2) * Math.abs(dir.x) -
+        (monster.actor.sideWidth / 2) * Math.abs(dir.y);
+
+      CTX.beginPath();
+      CTX.rect(x, y, monster.actor.orientationW, monster.actor.orientationH);
+      if (monster.actor.orientationW + monster.actor.orientationH === 0) {
+        CTX.strokeStyle = "#F00";
+        CTX.rect(x, y, 5, 5);
+      }
+      CTX.moveTo(point.x, point.y);
+      let r =
+        (monster.actor.orientationH / 2) * Math.abs(dir.y) +
+        (monster.actor.orientationW / 2) * Math.abs(dir.x);
+      let end = point.translate(dir, monster.r * ENGINE.INI.GRIDPIX);
+      CTX.lineTo(end.x, end.y);
+      CTX.stroke();
+    }
+  },
+  RAYCAST_DRAW: {
+    configure(floor, ceiling, wall) {
+      this.floorTextureString = floor;
+      this.ceilingTextureString = ceiling;
+      this.wallTextureString = wall;
+      this.floorTexture = TEXTURE[floor];
+      this.ceilingTexture = TEXTURE[ceiling];
+      this.wallTexture = TEXTURE[wall];
+      this.floorData = ENGINE.getImgData(this.floorTexture);
+      this.ceilingData = ENGINE.getImgData(this.ceilingTexture);
+      this.wallData = ENGINE.getImgData(this.wallTexture);
+    },
+    draw(layerString) {
+      let imageData = RAYCAST.renderView(
+        ENGINE.RAYCAST_DRAW.floorData,
+        ENGINE.RAYCAST_DRAW.ceilingData,
+        ENGINE.RAYCAST_DRAW.wallData
+      );
+      LAYER[layerString].putImageData(imageData, 0, 0);
+    },
+    drawFilter(layerString, filters = [], ARG = []) {
+      let imageData = RAYCAST.renderView(
+        ENGINE.RAYCAST_DRAW.floorData,
+        ENGINE.RAYCAST_DRAW.ceilingData,
+        ENGINE.RAYCAST_DRAW.wallData
+      );
+      for (const [index, func] of filters.entries()) {
+        func.call(null, imageData, ARG[index]);
+      }
+      LAYER[layerString].putImageData(imageData, 0, 0);
     }
   }
 };
@@ -1677,110 +1974,32 @@ var LAYER = {
 };
 var SPRITE = {};
 var AUDIO = {};
-var ASSET = {};
+var ASSET = {
+  convertToGrayScale(original, target, howmany = 1) {
+    ASSET[target] = {};
+    ASSET[target].type = ASSET[original].type;
+    for (let face in ASSET[original]) {
+      if (typeof ASSET[original][face] !== "object") continue;
+      ASSET[target][face] = [];
+      for (let i = 0, LN = ASSET[original][face].length; i < LN; i++) {
+        let originalSprite = ASSET[original][face][i];
+        ASSET[target][face].push(
+          ENGINE.grayScaleImg(
+            ASSET[original][face][i],
+            `${target}_${face}_${i}`
+          )
+        );
+      }
+    }
+  }
+};
 var WASM = {};
+var MEMORY = {};
 var PATTERN = {
-  create: function(which) {
+  create(which) {
     var image = TEXTURE[which];
     var CTX = LAYER.temp;
     PATTERN[which] = CTX.createPattern(image, "repeat");
-  }
-};
-var AnimationSPRITE = function(x, y, type, howmany) {
-  this.x = x;
-  this.y = y;
-  this.pool = [];
-  for (var i = 0; i < howmany; i++) {
-    this.pool.push(type + i.toString().padStart(2, "0"));
-  }
-};
-class TextSprite {
-  constructor(text, point, color, frame) {
-    this.text = text;
-    this.point = point;
-    this.color = color || "#FFF";
-    this.frame = frame || ENGINE.INI.FADE_FRAMES; //magic number
-  }
-}
-var TEXTPOOL = {
-  pool: [],
-  draw: function(layer) {
-    var TPL = TEXTPOOL.pool.length;
-    if (TPL === 0) return;
-    ENGINE.layersToClear.add(layer);
-    var CTX = LAYER[layer];
-    CTX.font = "10px Consolas";
-    CTX.textAlign = "center";
-    var vx, vy;
-    for (let q = TPL - 1; q >= 0; q--) {
-      CTX.fillStyle = TEXTPOOL.pool[q].color;
-      vx =
-        TEXTPOOL.pool[q].point.x - ENGINE.VIEWPORT.vx + ENGINE.INI.GRIDPIX / 2;
-      vy =
-        TEXTPOOL.pool[q].point.y - ENGINE.VIEWPORT.vy + ENGINE.INI.GRIDPIX / 2;
-      CTX.save();
-      CTX.globalAlpha =
-        (1000 -
-          (ENGINE.INI.FADE_FRAMES - TEXTPOOL.pool[q].frame) *
-            (1000 / ENGINE.INI.FADE_FRAMES)) /
-        1000;
-      CTX.fillText(TEXTPOOL.pool[q].text, vx, vy);
-      CTX.restore();
-      TEXTPOOL.pool[q].frame--;
-      if (TEXTPOOL.pool[q].frame <= 0) {
-        TEXTPOOL.pool.splice(q, 1);
-      }
-    }
-  }
-};
-class PartSprite {
-  constructor(point, sprite, line, speed) {
-    this.point = point;
-    this.sprite = sprite;
-    this.line = line;
-    this.speed = speed;
-  }
-}
-var SpritePOOL = {
-  pool: [],
-  draw: function(layer) {
-    var SPL = SpritePOOL.pool.length;
-    if (SPL === 0) return;
-    ENGINE.layersToClear.add(layer);
-    var vx, vy, line;
-    for (var q = SPL - 1; q >= 0; q--) {
-      vx = SpritePOOL.pool[q].point.x - ENGINE.VIEWPORT.vx;
-      vy = SpritePOOL.pool[q].point.y - ENGINE.VIEWPORT.vy;
-      line = SpritePOOL.pool[q].sprite.height - SpritePOOL.pool[q].line;
-      ENGINE.drawPart(layer, vx, vy, SpritePOOL.pool[q].sprite, line);
-      SpritePOOL.pool[q].line--;
-      if (SpritePOOL.pool[q].line <= 0) {
-        SpritePOOL.pool.splice(q, 1);
-      }
-    }
-  }
-};
-var EXPLOSIONS = {
-  pool: [],
-  draw: function(layer) {
-    // draws AnimationSPRITE(x, y, type, howmany) from EXPLOSIONS.pool
-    // example new AnimationSPRITE(actor.x, actor.y, "AlienExp", 6)
-    layer = layer || "explosion";
-    var PL = EXPLOSIONS.pool.length;
-    if (PL === 0) return;
-    ENGINE.layersToClear.add(layer);
-    for (var instance = PL - 1; instance >= 0; instance--) {
-      var sprite = EXPLOSIONS.pool[instance].pool.shift();
-      ENGINE.spriteDraw(
-        layer,
-        EXPLOSIONS.pool[instance].x - ENGINE.VIEWPORT.vx,
-        EXPLOSIONS.pool[instance].y - ENGINE.VIEWPORT.vy,
-        SPRITE[sprite]
-      );
-      if (EXPLOSIONS.pool[instance].pool.length === 0) {
-        EXPLOSIONS.pool.splice(instance, 1);
-      }
-    }
   }
 };
 class LiveSPRITE {
@@ -1798,12 +2017,11 @@ class LiveSPRITE {
         break;
       default:
         throw "LiveSPRITE type ERROR";
-      //break;
     }
   }
 }
 class ACTOR {
-  constructor(sprite_class, x, y, orientation, asset) {
+  constructor(sprite_class, x, y, orientation, asset, fps) {
     this.class = sprite_class;
     this.x = x || 0;
     this.y = y || 0;
@@ -1811,8 +2029,14 @@ class ACTOR {
     this.asset = asset || null;
     this.vx = 0;
     this.vy = 0;
+    this.fps = fps || 30;
+    this.nextSpriteTime = 1000 / this.fps;
+    this.currentSpriteTime = 0;
     this.resetIndexes();
     if (this.class !== null) this.refresh();
+    this.animationThrough = false;
+    this.drawX = null;
+    this.drawY = null;
   }
   simplify(name) {
     this.class = name;
@@ -1829,21 +2053,17 @@ class ACTOR {
   refresh() {
     if (this.orientation === null) {
       this.name = this.class;
-      return;
-    }
-    switch (this.asset.type) {
-      case "4D":
-        this.name = `${this.class}_${this.orientation}_${
-          this[this.orientation + "_index"]
-        }`;
-        break;
-      case "1D":
-        this.name = `${this.class}_${this.linear_index
-          .toString()
-          .padStart(2, "0")}`;
-        break;
-      default:
-        throw "actor.refresh asset type ERRoR";
+    } else {
+      switch (this.asset.type) {
+        case "4D":
+          this.name = `${this.class}_${this.orientation}_${this[this.orientation + "_index"]}`;
+          break;
+        case "1D":
+          this.name = `${this.class}_${this.linear_index.toString().padStart(2, "0")}`;
+          break;
+        default:
+          throw "actor.refresh asset type ERROR";
+      }
     }
 
     this.width = SPRITE[this.name].width;
@@ -1881,825 +2101,219 @@ class ACTOR {
     }
     return orientation;
   }
-  animateMove(orientation) {
+  updateAnimation(time, orientation = this.orientation) {
+    this.currentSpriteTime += time;
+    if (this.currentSpriteTime >= this.nextSpriteTime) {
+      this.currentSpriteTime -= this.nextSpriteTime;
+      this.animateMove(orientation);
+    }
+  }
+  animateMove(orientation = this.orientation) {
     this[orientation + "_index"]++;
-    if (this[orientation + "_index"] >= this.asset[orientation].length)
+    if (this[orientation + "_index"] >= this.asset[orientation].length) {
       this[orientation + "_index"] = 0;
+      this.animationThrough = true;
+    }
     this.refresh();
   }
   static gridToClass(grid, sprite_class) {
     var p = GRID.gridToCenterPX(grid);
     return new ACTOR(sprite_class, p.x, p.y);
   }
-}
-var GRID = {
-  collision: function(actor, grid) {
-    let actorGrid = actor.MoveState.homeGrid;
-    return GRID.same(actorGrid, grid);
-  },
-  spriteToSpriteCollision: function(actor1, actor2) {
-    return GRID.same(actor1.MoveState.homeGrid, actor2.MoveState.homeGrid);
-  },
-  gridToCenterPX: function(grid) {
-    var x = grid.x * ENGINE.INI.GRIDPIX + ENGINE.INI.GRIDPIX / 2;
-    var y = grid.y * ENGINE.INI.GRIDPIX + ENGINE.INI.GRIDPIX / 2;
-    return new Point(x, y);
-  },
-  gridToSprite: function(grid, actor) {
-    GRID.coordToSprite(GRID.gridToCoord(grid), actor);
-  },
-  coordToSprite: function(coord, actor) {
-    actor.x = coord.x + ENGINE.INI.GRIDPIX / 2;
-    actor.y = coord.y + ENGINE.INI.GRIDPIX / 2;
-  },
-  gridToCoord: function(grid) {
-    var x = grid.x * ENGINE.INI.GRIDPIX;
-    var y = grid.y * ENGINE.INI.GRIDPIX;
-    return new Point(x, y);
-  },
-  coordToGrid: function(x, y) {
-    var tx = Math.floor(x / ENGINE.INI.GRIDPIX);
-    var ty = Math.floor(y / ENGINE.INI.GRIDPIX);
-    return new Grid(tx, ty);
-  },
-  create: function(x, y) {
-    var temp = [];
-    var string = "1".repeat(x);
-    for (var iy = 0; iy < y; iy++) {
-      temp.push(string);
-    }
-    return temp;
-  },
-  grid: function() {
-    var CTX = LAYER.grid;
-    var x = 0;
-    var y = 0;
-    CTX.strokeStyle = "#FFF";
-    //horizonal lines
-    do {
-      y += ENGINE.INI.GRIDPIX;
-      CTX.beginPath();
-      CTX.setLineDash([1, 3]);
-      CTX.moveTo(x, y);
-      CTX.lineTo(CTX.canvas.width, y);
-      CTX.closePath();
-      CTX.stroke();
-    } while (y <= CTX.canvas.height);
-    //vertical lines
-    y = 0;
-    do {
-      x += ENGINE.INI.GRIDPIX;
-      CTX.beginPath();
-      CTX.setLineDash([1, 3]);
-      CTX.moveTo(x, y);
-      CTX.lineTo(x, CTX.canvas.height);
-      CTX.closePath();
-      CTX.stroke();
-    } while (x <= CTX.canvas.width);
-  },
-  paintText: function(point, text, layer, color = "#FFF") {
-    var CTX = LAYER[layer];
-    CTX.font = "10px Consolas";
-    var y = point.y + ENGINE.INI.GRIDPIX / 2;
-    var x = point.x + ENGINE.INI.GRIDPIX / 2;
-    CTX.fillStyle = color;
-    CTX.textAlign = "center";
-    CTX.fillText(text, x, y);
-  },
-  paint: function(
-    grid,
-    floorIMG,
-    wallIMG,
-    floorLayer = "floor",
-    wallLayer = "wall",
-    drawGrid = false
-  ) {
-    ENGINE.clearLayer(floorLayer);
-    ENGINE.clearLayer(wallLayer);
-    ENGINE.fill(LAYER[floorLayer], floorIMG);
-    ENGINE.fill(LAYER[wallLayer], wallIMG);
-
-    if (drawGrid) {
-      ENGINE.clearLayer("grid");
-      GRID.grid();
-    }
-  },
-  repaint: function(
-    grid,
-    floorIMG,
-    wallIMG,
-    floorLayer = "floor",
-    wallLayer = "wall",
-    drawGrid = false
-  ) {
-    GRID.paint(grid, floorIMG, wallIMG, floorLayer, wallLayer, drawGrid);
-    const height = grid.length;
-    const width = grid[0].length;
-    for (var y = 0; y < height; y++) {
-      for (var x = 0; x < width; x++) {
-        if (grid[y].charAt(x) === "0") {
-          let point = GRID.gridToCoord({ x: x, y: y });
-          ENGINE.cutGrid(LAYER[wallLayer], point);
-        }
-      }
-    }
-  },
-  map: {
-    pack: function(grid) {
-      var RL = grid.length;
-      var converted = [];
-      for (var i = 0; i < RL; i++) {
-        converted.push(parseInt(grid[i], 2));
-      }
-      return converted;
-    },
-    unpack: function(map) {
-      var h = map.height;
-      var w = map.width;
-      if (h != map.grid.length) {
-        throw "Map corrupted: height:" + h + " grid.length: " + map.grid.length;
-      }
-      var binary = [];
-      for (var i = 0; i < h; i++) {
-        let binTemp = float64ToInt64Binary(map.grid[i]).padStart(w, "0");
-        binary.push(binTemp);
-      }
-      return binary;
-    }
-  },
-  isBlock: function(x, y, map = MAP[GAME.level]) {
-    if (x < 0 || y < 0) return true;
-    if (x >= map.width || y >= map.height) return true;
-    var block = map.grid[y].charAt(x);
-    if (block === "1") {
-      return true;
-    } else return false;
-  },
-  gridIsBlock: function(grid, map = MAP[GAME.level]) {
-    return GRID.isBlock(grid.x, grid.y, map);
-  },
-  trueToGrid: function(actor) {
-    var TX = actor.x - ENGINE.INI.GRIDPIX / 2;
-    var TY = actor.y - ENGINE.INI.GRIDPIX / 2;
-    var GX = TX / ENGINE.INI.GRIDPIX;
-    var GY = TY / ENGINE.INI.GRIDPIX;
-    var MX = TX % ENGINE.INI.GRIDPIX;
-    var MY = TY % ENGINE.INI.GRIDPIX;
-    if (MX || MY) {
-      return null;
-    } else return { x: GX, y: GY };
-  },
-  same: function(grid1, grid2) {
-    if (grid1 === null || grid2 === null) return false;
-    if (grid1.x === grid2.x && grid1.y === grid2.y) {
-      return true;
-    } else return false;
-  },
-  isGridIn: function(grid, gridArray) {
-    for (var q = 0; q < gridArray.length; q++) {
-      if (grid.x === gridArray[q].x && grid.y === gridArray[q].y) {
-        return q;
-      }
-    }
-    return -1;
-  },
-  getDirections: function(grid, obstacles = []) {
-    var directions = [];
-    for (let D = 0; D < ENGINE.directions.length; D++) {
-      let newGrid = grid.add(ENGINE.directions[D]);
-      if (!GRID.gridIsBlock(newGrid) && newGrid.isInAt(obstacles) === -1) {
-        directions.push(ENGINE.directions[D]);
-      }
-    }
-    return directions;
-  },
-  getDirectionsFromNodeMap(grid, nodeMap) {
-    var directions = [];
-    for (let D = 0; D < ENGINE.directions.length; D++) {
-      let newGrid = grid.add(ENGINE.directions[D]);
-      if (nodeMap[newGrid.x][newGrid.y]) {
-        directions.push(ENGINE.directions[D]);
-      }
-    }
-    return directions;
-  },
-  findCrossroad: function(start, dir) {
-    let directions = GRID.getDirections(start);
-    let back = dir.mirror();
-    let BI = back.isInAt(directions);
-    if (BI !== -1) directions.splice(BI, 1);
-    while (directions.length < 2) {
-      dir = directions[0];
-      start = start.add(dir);
-      directions = GRID.getDirections(start);
-      back = dir.mirror();
-      BI = back.isInAt(directions);
-      if (BI !== -1) directions.splice(BI, 1);
-    }
-    return start;
-  },
-  findCrossroadAndLastDir: function(start, dir) {
-    let directions = GRID.getDirections(start);
-    let back = dir.mirror();
-    let BI = back.isInAt(directions);
-    if (BI !== -1) directions.splice(BI, 1);
-    while (directions.length < 2) {
-      dir = directions[0];
-      start = start.add(dir);
-      directions = GRID.getDirections(start);
-      back = dir.mirror();
-      BI = back.isInAt(directions);
-      if (BI !== -1) directions.splice(BI, 1);
-    }
-    return { finish: start, dir: dir };
-  },
-  pathToCrossroad: function(start, dir, obst = []) {
-    let path = [];
-    path.push(dir);
-    start = start.add(dir);
-    let directions = GRID.getDirections(start, obst);
-    if (directions.length === 1) return path;
-    let back = dir.mirror();
-    let BI = back.isInAt(directions);
-    if (BI !== -1) directions.splice(BI, 1);
-    while (directions.length === 1) {
-      dir = directions[0];
-      path.push(dir);
-      start = start.add(dir);
-      directions = GRID.getDirections(start);
-      if (directions.length === 1) return path;
-      back = dir.mirror();
-      BI = back.isInAt(directions);
-      if (BI !== -1) directions.splice(BI, 1);
-    }
-    return path;
-  },
-  findLengthToCrossroad: function(start, stack) {
-    if (stack === null) return;
-    var q = 0;
-    do {
-      if (stack[q] === undefined) return null;
-      start = start.add(stack[q]);
-      q++;
-    } while (GRID.getDirections(start).length < 3);
-    return q;
-  },
-  translateMove: function(entity, changeView = false, onFinish = null) {
-    entity.actor.x += entity.MoveState.dir.x * entity.speed;
-    entity.actor.y += entity.MoveState.dir.y * entity.speed;
-    entity.actor.orientation = entity.actor.getOrientation(
-      entity.MoveState.dir
-    );
-    entity.actor.animateMove(entity.actor.orientation);
-    entity.MoveState.homeGrid = GRID.coordToGrid(
-      entity.actor.x,
-      entity.actor.y
-    );
-
-    if (changeView) {
-      ENGINE.VIEWPORT.check(entity.actor);
-    }
-
-    ENGINE.VIEWPORT.alignTo(entity.actor);
-    if (GRID.same(entity.MoveState.endGrid, GRID.trueToGrid(entity.actor))) {
-      entity.MoveState.moving = false;
-      entity.MoveState.startGrid = entity.MoveState.endGrid;
-      entity.MoveState.homeGrid = entity.MoveState.endGrid;
-
-      if (onFinish) onFinish.call();
-    }
-    return;
-  },
-  blockMove: function(entity, changeView = false) {
-    let newGrid = entity.MoveState.startGrid.add(entity.MoveState.dir);
-    entity.MoveState.reset(newGrid);
-    GRID.gridToSprite(newGrid, entity.actor);
-    entity.actor.orientation = entity.actor.getOrientation(
-      entity.MoveState.dir
-    );
-    entity.actor.animateMove(entity.actor.orientation);
-
-    if (changeView) {
-      ENGINE.VIEWPORT.check(entity.actor);
-    }
-    ENGINE.VIEWPORT.alignTo(entity.actor);
-  },
-  teleportToGrid: function(entity, grid, changeView = false) {
-    entity.MoveState.reset(grid);
-    GRID.gridToSprite(grid, entity.actor);
-    if (changeView) {
-      ENGINE.VIEWPORT.check(entity.actor);
-    }
-    ENGINE.VIEWPORT.alignTo(entity.actor);
-  },
-  findPath: function(
-    start,
-    finish,
-    dungeon,
-    limit = ENGINE.INI.MAX_PATH,
-    firstDir = new Vector(0, 0)
-  ) {
-    //A*
-    var Q = new NodeQ("distance");
-    let NodeMap = dungeon.setNodeMap("tempNodeMap");
-    //let NodeMap = dungeon.setNodeMap(); //debug, set this to paint path in level editor!
-    Q.list.push(new Node(start, finish, [firstDir]));
-    if (Q.list[0].dist === 0) return null;
-    NodeMap[start.x][start.y].distance = 0;
-    var selected;
-    var round = 0;
-    while (Q.list.length > 0) {
-      round++;
-      selected = Q.list.shift();
-      if (selected.path > limit) {
-        selected.status = "Excess";
-        selected.stack.splice(0, 1);
-        return selected;
-      }
-      let dirs = GRID.getDirectionsFromNodeMap(selected.grid, NodeMap);
-      for (let q = 0; q < dirs.length; q++) {
-        let HG = selected.grid.add(dirs[q]);
-        let history = [].concat(selected.history);
-        history.push(HG);
-        let I_stack = [].concat(selected.stack);
-        I_stack.push(dirs[q]);
-        let fork = new Node(
-          HG,
-          finish,
-          I_stack,
-          selected.path + 1,
-          history,
-          round
-        );
-        if (fork.dist === 0) {
-          fork.stack.splice(0, 1);
-          fork.status = "Found";
-          return fork;
-        }
-        let node = NodeMap[fork.grid.x][fork.grid.y];
-        if (fork.path < node.distance) {
-          node.distance = fork.path;
-          Q.queue(fork);
-        }
-      }
-      if (round > ENGINE.INI.PATH_ROUNDS) {
-        break;
-      }
-    }
-    //no solution was found in ENGINE.INI.PATH_ROUNDS iterations
-    if (Q.list.length > 0) {
-      Q.list[0].stack.splice(0, 1);
-      Q.list[0].status = "Abandoned";
-      return Q.list[0];
-    } else {
-      selected.status = "NoSolution";
-      selected.stack.splice(0, 1);
-      return selected;
-    }
-  },
-
-  findPathToFirstCrossroad: function(
-    start,
-    finish,
-    firstDir = new Vector(0, 0)
-  ) {
-    //this legacy code will from 2.29 on, correct (function arguments)
-    let path = GRID.findPath(start, finish, firstDir);
-    let len = GRID.findLengthToCrossroad(start, path);
-    if (len > 0) path.splice(len);
-    return path;
-  },
-  paintGridPath: function(layer, color, path, start) {
-    if (path === null) return;
-    var CTX = LAYER[layer];
-    ENGINE.clearLayer(layer);
-    CTX.strokeStyle = color;
-    var point = GRID.gridToCenterPX(start);
-    point.toViewport();
-    var PL = path.length;
-    CTX.beginPath();
-    CTX.moveTo(point.x, point.y);
-    for (let q = 0; q < PL; q++) {
-      point = GRID.gridToCenterPX(path[q]);
-      CTX.lineTo(point.x, point.y);
-      CTX.stroke();
-    }
-  },
-  paintPath: function(layer, color, path, start, z = 0) {
-    if (path === null) return;
-    var CTX = LAYER[layer];
-    ENGINE.clearLayer(layer);
-    CTX.strokeStyle = color;
-    var point = GRID.gridToCenterPX(start);
-    point.toViewport();
-    var PL = path.length;
-    CTX.beginPath();
-    CTX.moveTo(point.x + z, point.y + z);
-    for (let q = 0; q < PL; q++) {
-      point = point.translate(path[q]);
-      CTX.lineTo(point.x + z, point.y + z);
-      CTX.stroke();
-    }
-  },
-  AI: {
-    // assumes HERO is hunted entity; please refactor this!
-    advancer: {
-      hunt: function() {
-        let next = GRID.findCrossroadAndLastDir(
-          HERO.MoveState.startGrid,
-          HERO.MoveState.dir
-        );
-        let nextCR = next.finish;
-        let directions = GRID.getDirections(nextCR);
-        let back = next.dir.mirror();
-        let BI = back.isInAt(directions);
-        if (BI !== -1) directions.splice(BI, 1);
-        if (HERO.MoveState.dir.isInAt(directions) !== -1) {
-          return {
-            type: "grid",
-            return: GRID.findCrossroad(
-              nextCR.add(HERO.MoveState.dir),
-              HERO.MoveState.dir
-            )
-          };
-        } else {
-          let LNs = [];
-          let CRs = [];
-          for (let q = 0; q < directions.length; q++) {
-            CRs.push(
-              GRID.findCrossroad(nextCR.add(directions[q]), directions[q])
-            );
-            LNs.push(CRs[q].distance(HERO.MoveState.startGrid));
-          }
-          let qq = LNs.indexOf(Math.min(...LNs));
-          return { type: "grid", return: CRs[qq] };
-        }
-      }
-    },
-    default: {
-      hunt: function() {
-        return {
-          type: "grid",
-          return: GRID.findCrossroad(
-            HERO.MoveState.startGrid,
-            HERO.MoveState.dir
-          )
-        };
-      }
-    },
-    shadower: {
-      hunt: function(MS, tolerance) {
-        let solutions = MS.endGrid.directionSolutions(HERO.MoveState.homeGrid);
-        let directions = GRID.getDirections(MS.endGrid);
-        let back = MS.dir.mirror();
-        let BI = back.isInAt(directions);
-        if (BI !== -1) directions.splice(BI, 1);
-        let selected;
-        if (directions.length === 1) {
-          selected = directions[0];
-        } else {
-          if (
-            MS.goingAway(HERO.MoveState) ||
-            !MS.towards(HERO.MoveState, tolerance)
-          ) {
-            if (HERO.MoveState.dir.isInAt(directions) !== -1) {
-              selected = HERO.MoveState.dir;
-            } else selected = solve();
-          } else {
-            let contra = HERO.MoveState.dir.mirror();
-            if (contra.isInAt(directions) !== -1) {
-              selected = contra;
-            } else selected = solve();
-          }
-        }
-        if (!selected) {
-          selected = directions.chooseRandom();
-        }
-        let path = GRID.pathToCrossroad(MS.endGrid, selected);
-        return { type: "path", return: path };
-
-        function solve() {
-          for (let q = 0; q < 2; q++) {
-            if (solutions[q].dir.isInAt(directions) !== -1)
-              return solutions[q].dir;
-          }
-          return null;
-        }
-      }
-    },
-    follower: {
-      hunt: function() {
-        return {
-          type: "grid",
-          return: GRID.findCrossroad(
-            HERO.MoveState.startGrid,
-            HERO.MoveState.dir.mirror()
-          )
-        };
-      }
-    },
-    wanderer: {
-      hunt: function(MS, obst = []) {
-        let directions = GRID.getDirections(MS.endGrid, obst);
-        if (directions.length > 1) {
-          let back = MS.dir.mirror();
-          let BI = back.isInAt(directions);
-          if (BI !== -1) directions.splice(BI, 1);
-        }
-        let selected = directions.chooseRandom();
-        let path = GRID.pathToCrossroad(MS.endGrid, selected, obst);
-        return { type: "path", return: path };
-      }
-    },
-    keepTheDistance: {
-      hunt: function(MS, reference, setDistance) {
-        let directions = GRID.getDirections(
-          MS.endGrid,
-          MAP[GAME.level].DUNGEON.obstacles
-        );
-        let possible = [];
-        let max = [];
-        let curMax = 0;
-        for (let i = 0; i < directions.length; i++) {
-          let test = MS.endGrid.add(directions[i]);
-          let distance = test.distanceDiagonal(reference);
-          if (distance === setDistance) possible.push(directions[i]);
-          if (distance > curMax) {
-            max.clear();
-            curMax = distance;
-            max.push(directions[i]);
-          } else if (distance === curMax) max.push(directions[i]);
-        }
-        let path;
-        if (possible.length > 0) {
-          path = [possible.chooseRandom()];
-        } else if (max.length > 0) {
-          path = [max.chooseRandom()];
-        } else path = [];
-        return { type: "path", return: path };
-      }
-    },
-    circle: {
-      hunt: function(MS, reference) {
-        const rs = randomSign();
-        const initial = MS.endGrid.direction(reference).mirror();
-        let start = MS.endGrid;
-        let index = initial.isInAt(ENGINE.circle);
-        let path = [];
-        do {
-          index += rs;
-          if (index >= ENGINE.circle.length) index = 0;
-          if (index < 0) index = ENGINE.circle.length - 1;
-          let next = reference.add(ENGINE.circle[index]);
-          path.push(start.direction(next));
-          start = next;
-        } while (!GRID.same(start, MS.endGrid));
-        return { type: "path", return: path };
-      }
-    }
-  },
-  gridToIndex: function(grid) {
-    return grid.x + grid.y * MAP[GAME.level].width;
-  },
-  indexToGrid: function(index) {
-    let x = index % MAP[GAME.level].width;
-    let y = Math.floor(index / MAP[GAME.level].width);
-    return new Grid(x, y);
-  },
-  vision: function(startGrid, endGrid) {
-    if (GRID.same(startGrid, endGrid)) return true;
-    let path = GRID.raycasting(startGrid, endGrid);
-    return GRID.pathClear(path);
-  },
-  raycasting: function(startGrid, endGrid) {
-    let normDir = startGrid.direction(endGrid);
-    let path = [];
-    path.push(Grid.toClass(startGrid));
-    let x = startGrid.x;
-    let y = startGrid.y;
-    let dx = Math.abs(endGrid.x - x);
-    let dy = -Math.abs(endGrid.y - y);
-    let Err = dx + dy;
-    let E2, node;
-    do {
-      E2 = Err * 2;
-      if (E2 >= dy) {
-        Err += dy;
-        x += normDir.x;
-      }
-      if (E2 <= dx) {
-        Err += dx;
-        y += normDir.y;
-      }
-      node = new Grid(x, y);
-      path.push(node);
-    } while (!GRID.same(node, endGrid));
-    return path;
-  },
-  pathClear: function(path) {
-    if (path.length === 0) return true;
-    for (let q = 0; q < path.length; q++) {
-      if (GRID.gridIsBlock(path[q])) return false;
-    }
-    return true;
-  },
-  calcDistancesBFS_BH: function(start, dungeon) {
-    dungeon.setNodeMap();
-    let BH = new BinHeap("distance");
-    dungeon.nodeMap[start.x][start.y].distance = 0;
-    BH.insert(dungeon.nodeMap[start.x][start.y]);
-    while (BH.size() > 0) {
-      let node = BH.extractMax();
-      for (let D = 0; D < ENGINE.directions.length; D++) {
-        let nextNode =
-          dungeon.nodeMap[node.grid.x + ENGINE.directions[D].x][
-            node.grid.y + ENGINE.directions[D].y
-          ];
-        if (nextNode) {
-          if (nextNode.distance > node.distance + 1) {
-            nextNode.distance = node.distance + 1;
-            nextNode.prev = node.grid;
-            BH.insert(nextNode);
-          }
-        }
-      }
-    }
-  },
-  calcDistancesBFS_A: function(start, dungeon) {
-    dungeon.setNodeMap();
-    let Q = new NodeQ("distance");
-    dungeon.nodeMap[start.x][start.y].distance = 0;
-    Q.queueSimple(dungeon.nodeMap[start.x][start.y]);
-    while (Q.size() > 0) {
-      let node = Q.dequeue();
-      for (let D = 0; D < ENGINE.directions.length; D++) {
-        let nextNode =
-          dungeon.nodeMap[node.grid.x + ENGINE.directions[D].x][
-            node.grid.y + ENGINE.directions[D].y
-          ];
-        if (nextNode) {
-          if (nextNode.distance > node.distance + 1) {
-            nextNode.distance = node.distance + 1;
-            nextNode.prev = node.grid;
-            Q.queueSimple(nextNode);
-          }
-        }
-      }
-    }
-  },
-  pathFromNodeMap: function(origin, dungeon) {
-    //origin type Grid
-    let path = [];
-    let prev = dungeon.nodeMap[origin.x][origin.y].prev;
-    while (prev) {
-      path.push(prev);
-      prev = dungeon.nodeMap[prev.x][prev.y].prev;
-    }
-    return path;
+  setSpriteClass(spriteClass) {
+    this.asset = ASSET[spriteClass];
+    this.class = spriteClass;
+    this.resetIndexes();
+    this.animateMove(this.orientation);
   }
-};
-class Node {
-  constructor(HG, goal, stack, path, history, iterations) {
-    this.grid = HG;
-    this.stack = stack;
-    this.history = history || [HG];
-    this.path = path || 0;
-    this.dist = this.grid.distance(goal);
-    this.priority = this.path + this.dist;
-    this.status = "Progress";
-    this.iterations = iterations || 0;
+  setDraw(x, y) {
+    this.drawX = x;
+    this.drawY = y;
   }
-  append(node, goal) {
-    let stack = this.stack.concat(node.stack);
-    let history = this.history.concat(node.history.slice(1));
-    let path = this.path + node.path;
-    return new Node(node.grid, goal, stack, path, history);
+  getDraw() {
+    return new Grid(this.drawX, this.drawY);
   }
 }
-class NodeQ {
-  constructor(prop) {
-    this.list = [];
-    this.sort = prop;
+class Rotating_ACTOR extends ACTOR {
+  constructor(sprite_class, x, y, fps) {
+    super(sprite_class, x, y, 'linear', ASSET[sprite_class], fps);
+    this.drawX = this.x;
+    this.drawY = this.y;
+    this.angle = 0;
   }
-  dequeue() {
-    return this.list.shift();
+  setPosition(x, y) {
+    this.x = x;
+    this.y = y;
   }
-  size() {
-    return this.list.length;
+  setAngle(angle) {
+    this.angle = angle;
   }
-  queueSimple(node) {
-    var included = false;
-    for (let q = 0; q < this.list.length; q++) {
-      if (node[this.sort] < this.list[q][this.sort]) {
-        this.list.splice(q, 0, node);
-        included = true;
-        break;
-      }
-    }
-    if (!included) this.list.push(node);
-  }
-  queue(node) {
-    var included = false;
-    for (let q = 0; q < this.list.length; q++) {
-      if (node.priority < this.list[q].priority) {
-        this.list.splice(q, 0, node);
-        included = true;
-        break;
-      } else if (
-        node.priority === this.list[q].priority &&
-        node.dist < this.list[q].dist
-      ) {
-        this.list.splice(q, 0, node);
-        included = true;
-        break;
-      }
-    }
-    if (!included) this.list.push(node);
+  sprite() {
+    return SPRITE[`${this.name}_${this.angle}`];
   }
 }
-class BinHeap {
-  constructor(prop) {
-    this.HEAP = [];
-    this.sort = prop;
+class Static_ACTOR {
+  constructor(spriteClass) {
+    this._sprite = SPRITE[spriteClass];
+    this.name = spriteClass;
+    this.width = this._sprite.width;
+    this.height = this._sprite.height;
   }
-  size() {
-    return this.HEAP.length;
+  sprite() {
+    return this._sprite;
   }
-  parent(i) {
-    return Math.floor((i - 1) / 2);
+  setDraw(x, y) {
+    this.drawX = x;
+    this.drawY = y;
   }
-  leftChild(i) {
-    return 2 * i + 1;
+}
+class Flat_ACTOR {
+  constructor(spriteClass, parent = null) {
+    this.flat = true;
+    this.sprite = SPRITE[spriteClass];
+    this.parent = parent;
   }
-  rightChild(i) {
-    return 2 * i + 2;
+  getImageData() {
+    return this.parent.getImageData();
   }
-  siftUp(i) {
-    while (
-      i > 0 &&
-      this.HEAP[this.parent(i)][this.sort] > this.HEAP[i][this.sort]
-    ) {
-      this.HEAP.swap(this.parent(i), i);
-      i = this.parent(i);
+  face(rayDirection) {
+    return null;
+  }
+}
+class _3D_ACTOR {
+  constructor(spriteClass, parent) {
+    this.asset = ASSET[spriteClass];
+    this.parent = parent;
+    switch (this.asset.type) {
+      case "4D":
+        this.sequenceLength = this.asset.front.length;
+        break;
+      case "1D":
+        this.sequenceLength = this.asset.linear.length;
+        break;
+    }
+    this.now = 0;
+    this.frontWidth = null;
+    this.sideWidth = null;
+    this.orientationW = null;
+    this.orientationH = null;
+    this.faceShown = null;
+    this.width();
+    this.updateOrientationWidths();
+    this.nextSpriteTime = 1000 / parent.SPRITE_FPS;
+    this.currentSpriteTime = 0;
+    this.animationThrough = false;
+  }
+  changeClass(spriteClass) {
+    this.asset = ASSET[spriteClass];
+  }
+  updateAnimation(time) {
+    this.currentSpriteTime += time;
+    if (this.currentSpriteTime >= this.nextSpriteTime) {
+      this.currentSpriteTime -= this.nextSpriteTime;
+      this.animateMove();
     }
   }
-  siftDown(i) {
-    let maxIndex = i;
-    let L = this.leftChild(i);
-    if (
-      L <= this.size() - 1 &&
-      this.HEAP[L][this.sort] < this.HEAP[maxIndex][this.sort]
-    ) {
-      maxIndex = L;
+  animateMove() {
+    this.now++;
+    if (this.now === this.sequenceLength) {
+      this.animationThrough = true;
     }
-    let R = this.rightChild(i);
-    if (
-      R <= this.size() - 1 &&
-      this.HEAP[R][this.sort] < this.HEAP[maxIndex][this.sort]
-    ) {
-      maxIndex = R;
+    this.now %= this.sequenceLength;
+    this.width();
+    this.updateOrientationWidths();
+  }
+  updateOrientationWidths() {
+    if (this.asset.type === "1D") {
+      this.orientationW = this.frontWidth;
+      this.orientationH = this.frontWidth;
+      return;
     }
-    if (i !== maxIndex) {
-      this.HEAP.swap(i, maxIndex);
-      this.siftDown(maxIndex);
+    let dir = this.parent.moveState.dir;
+    this.orientationW =
+      Math.abs(dir.y) * this.frontWidth + Math.abs(dir.x) * this.sideWidth;
+    this.orientationH =
+      Math.abs(dir.x) * this.frontWidth + Math.abs(dir.y) * this.sideWidth;
+  }
+  width() {
+    switch (this.asset.type) {
+      case "4D":
+        this.frontWidth = this.asset.front[this.now].width;
+        this.sideWidth = this.asset.left[this.now].width;
+        break;
+
+      case "1D":
+        this.frontWidth = this.asset.linear[this.now].width;
+        this.sideWidth = this.asset.linear[this.now].width;
+        break;
     }
   }
-  insert(node) {
-    this.HEAP.push(node);
-    this.siftUp(this.size() - 1);
-  }
-  extractMax() {
-    let result = this.HEAP[0];
-    this.HEAP[0] = this.HEAP[this.size() - 1];
-    this.HEAP.pop();
-    this.siftDown(0);
-    return result;
-  }
-  display() {
-    while (this.size() > 0) {
-      console.log(this.extractMax());
+  face(rayDirection) {
+    if (this.asset.type === "1D") {
+      this.faceShown = "linear";
+      return;
     }
+    let aligned = rayDirection.ortoAlign();
+    let angle = this.parent.moveState.dir.angleBetweenVectors(aligned);
+    this.faceShown = this.angleToFace(angle);
+  }
+  angleToFace(angle) {
+    if (!angle) return "front";
+    let faces = ["front", "left", "back", "right"];
+    let index = angle / 90;
+    return faces[index];
+  }
+  getImageData() {
+    let img = this.asset[this.faceShown][this.now];
+    return ENGINE.getImgData(img);
+  }
+}
+class _1D_MoveState {
+  constructor(x, dir) {
+    this.x = x;
+    this.dir = dir;
+  }
+  move(dx) {
+    this.x = this.x + this.dir * dx;
+  }
+  getX() {
+    return Math.round(this.x);
+  }
+  setX(x) {
+    console.assert(Number.isInteger(x), "X must be integer!");
+    this.x = x;
   }
 }
 class MoveState {
-  constructor(startGrid, dir) {
+  constructor(startGrid, dir, GA) {
     this.startGrid = Grid.toClass(startGrid);
     this.dir = dir || null;
     this.homeGrid = Grid.toClass(startGrid);
     this.endGrid = Grid.toClass(startGrid);
+    this.pos = this.homeGrid; //compatibility with 3D MS
     this.moving = false;
+    this.gridArray = null;
+    if (GA) {
+      this.linkGridArray(GA);
+    }
   }
-  setEnd() {
+  linkGridArray(gridArray) {
+    this.gridArray = gridArray;
+  }
+  setEnd(repeat = 1) {
     if (this.dir !== null) {
-      this.endGrid = this.startGrid.add(this.dir);
+      this.endGrid = this.startGrid.add(this.dir.prolong(repeat));
+      if (this.gridArray.outside(this.endGrid)) {
+        this.endGrid = this.gridArray.toOtherSide(this.endGrid);
+      }
       this.moving = true;
     }
   }
-  next(dir) {
+  next(dir, repeat = 1) {
     if (dir !== null) {
       this.startGrid = this.endGrid;
       this.dir = dir;
-      this.setEnd();
+      this.setEnd(repeat);
     }
   }
   flip() {
@@ -2737,14 +2351,43 @@ class MoveState {
     this.moving = false;
   }
 }
+class _3D_MoveState {
+  constructor(pos, dir) {
+    this.pos = pos;
+    this.dir = dir;
+    this.moving = false;
+    this.startPos = pos;
+    this.endPos = pos;
+    this.gridArray = null;
+    this.realDir = null;
+  }
+  linkGridArray(gridArray) {
+    this.gridArray = gridArray;
+  }
+  next(dir) {
+    if (dir !== null || dir !== undefined) {
+      this.startPos = this.endPos;
+      this.dir = dir;
+      this.endPos = this.startPos.add(this.dir);
+      this.realDir = this.pos.direction(this.endPos);
+      this.moving = true;
+    } else throw "Dir null!";
+  }
+  start() {
+    this.moving = true;
+  }
+  stop() {
+    this.moving = false;
+  }
+}
 var VIEW = {
-  init: function() {
+  init() {
     VIEW.x = 0;
     VIEW.y = 0;
     VIEW.speed = 1;
     VIEW.actor = new ACTOR(null, 0, 0);
   },
-  move: function(dir) {
+  move(dir) {
     VIEW.actor.x += VIEW.speed * ENGINE.INI.GRIDPIX * dir.x;
     VIEW.actor.y += VIEW.speed * ENGINE.INI.GRIDPIX * dir.y;
     if (VIEW.actor.x < 0) VIEW.actor.x = 0;
@@ -2759,7 +2402,49 @@ var VIEW = {
 };
 var FORM = {
   INI: {
-    DIV: "#ROOM"
+    DIV: "#ROOM",
+    FONT: "Consolas",
+    layer: "button",
+    lettButtonPad: 8
+  },
+  set(div, layer) {
+    this.setDiv(div);
+    this.setLayer(layer);
+  },
+  setDiv(div) {
+    this.INI.DIV = `#${div}`;
+  },
+  setLayer(layer) {
+    this.INI.layer = layer;
+  },
+  BUTTON: {
+    POOL: [],
+    draw() {
+      ENGINE.clearLayer(FORM.INI.layer);
+      for (let q = 0; q < FORM.BUTTON.POOL.length; q++) {
+        FORM.BUTTON.POOL[q].draw();
+      }
+    },
+    changeMousePointer(cname) {
+      for (let q = 0; q < FORM.BUTTON.POOL.length; q++) {
+        let button = FORM.BUTTON.POOL[q];
+        if (button.within()) {
+          ENGINE.mousePointer(cname);
+          return;
+        }
+      }
+      ENGINE.mouseDefault(cname);
+    },
+    click() {
+      for (let q = 0; q < FORM.BUTTON.POOL.length; q++) {
+        let button = FORM.BUTTON.POOL[q];
+        if (button.within()) {
+          button.handler.call();
+          return;
+        }
+      }
+      return;
+    }
   }
 };
 class Form {
@@ -2769,9 +2454,7 @@ class Form {
     this.y = y;
     this.w = w;
     this.h = h;
-    $(FORM.INI.DIV).append(
-      `<div id = 'FORM' class = 'form'><h1>${this.name}</h1><hr></div>`
-    );
+    $(FORM.INI.DIV).append(`<div id = 'FORM' class = 'form'><h1>${this.name}</h1><hr></div>`);
     $("#FORM").css({
       top: this.y,
       left: this.x,
@@ -2784,6 +2467,9 @@ class Form {
 }
 class Inventory {
   constructor() {
+    this.list = [];
+  }
+  clear() {
     this.list = [];
   }
   add(element) {
@@ -2826,25 +2512,23 @@ class Inventory {
   }
   stringify() {
     let list = [];
-    this.list.forEach(item => {
-      list.push([
-        item.count,
-        item.object.class,
-        item.object.name,
-        item.object.type,
-        item.object.use
-      ]);
+    this.list.forEach((item) => {
+      list.push([item.count]);
+      let idx = list.length - 1;
+      for (const def of item.object.saveDefinition) {
+        list[idx].push(item.object[def]);
+      }
     });
     let str = JSON.stringify(list);
     return str;
   }
   objectify(str) {
     const list = JSON.parse(str);
-    list.forEach(item => {
-      let className = item[2];
+    list.forEach((item) => {
+      let className = item[1];
       let obj = eval(className);
-      obj = new obj(new Grid(0, 0), item[3], item[4]);
-      let count = item[1];
+      obj = new obj(item[2]); //all arguments 2 ->
+      let count = item[0];
       do {
         this.add(obj);
         count--;
@@ -2856,6 +2540,30 @@ class Item {
   constructor(object, count) {
     this.object = object;
     this.count = count;
+  }
+}
+class FrameCounter {
+  constructor(id, frames, onFrame, onEnd) {
+    this.register();
+    this.id = id;
+    this.count = frames;
+    this.onFrame = onFrame;
+    this.onEnd = onEnd;
+  }
+  register() {
+    ENGINE.FRAME_COUNTERS.STACK.push(this);
+  }
+  unregister() {
+    ENGINE.FRAME_COUNTERS.remove(this.id);
+  }
+  update() {
+    this.count--;
+    this.onFrame.call(this);
+    if (this.count <= 0) this.quit();
+  }
+  quit() {
+    this.unregister();
+    this.onEnd.call(this);
   }
 }
 class Timer {
@@ -2873,7 +2581,7 @@ class Timer {
     this.delta = template.delta;
   }
   update() {
-    this.now = Math.round((this.delta + (Date.now() - this.start)) / 1000);
+    this.now = (this.delta + (Date.now() - this.start)) / 1000;
     if (this.constructor.name === "CountDown") {
       if (this.now >= this.value) this.quit();
     }
@@ -2881,7 +2589,9 @@ class Timer {
   time(time) {
     if (this.runs) {
       time = (time || this.delta + (Date.now() - this.start)) / 1000;
-    } else time = this.delta / 1000;
+    } else {
+      time = this.delta / 1000;
+    }
     let hours = Math.floor(time / 3600);
     let min = Math.floor((time % 3600) / 60);
     let sec = Math.floor((time % 3600) % 60);
@@ -2926,33 +2636,107 @@ class CountDown extends Timer {
   extend(value) {
     this.value += value;
   }
+  set(value) {
+    this.value = value;
+  }
+  reset() {
+    this.now = 0;
+  }
   quit() {
     this.unregister();
     this.func.call(this);
   }
+  remains() {
+    return this.value - this.now;
+  }
 }
 var CONSOLE = {
   id: "Console",
-  set: function(id) {
+  set(id) {
     CONSOLE.id = id;
   },
-  print: function(text) {
+  print(text) {
     $(`#${CONSOLE.id}`).append(`<p>${text}</p>`);
-    $(`#${CONSOLE.id}`)
-      .children()
-      .last()[0]
-      .scrollIntoView();
+    $(`#${CONSOLE.id}`).children().last()[0].scrollIntoView();
+    $(window).scrollTop($("#game").offset().top);
   }
 };
 class RenderData {
-  constructor(font, fontSize, color, layer) {
+  constructor(
+    font,
+    fontSize,
+    color,
+    layer,
+    shadowColor,
+    shadowOffsetX,
+    shadowOffsetY,
+    shadowBlur
+  ) {
     this.layerName = layer;
     this.layer = LAYER[layer];
     this.layer.font = `${fontSize}px ${font}`;
     this.layer.fillStyle = color;
     this.layer.textAlign = "left";
-    ENGINE.resetShadow(this.layer);
-    //margins
+    this.layer.shadowColor = shadowColor || "#000";
+    this.layer.shadowOffsetX = shadowOffsetX || 0;
+    this.layer.shadowOffsetY = shadowOffsetY || 0;
+    this.layer.shadowBlur = shadowBlur || 0;
+    this.fs = fontSize;
+  }
+}
+class VerticalScrollingText {
+  constructor(text, speed, renderData) {
+    this.text = text;
+    this.speed = speed;
+    this.RD = renderData;
+    this.textArray = this.text.split('\n').map(x => x.trim(" "));
+    this.lineHeight = Math.round(1.1 * this.RD.fs);
+    this.cw = this.RD.layer.canvas.width;
+    this.ch = this.RD.layer.canvas.height;
+    this.measureLineWidths();
+    this.maxWidth = Math.max(...this.lineWidths);
+    console.assert(this.maxWidth <= this.cw, "Line too wide for layer -  ERROR");
+    this.cursorX = Math.max(((this.cw - this.maxWidth) / 2) | 0, 0);
+    this.bottomY = this.ch + this.lineHeight;
+    this.reset();
+  }
+  reset() {
+    this.cursorY = this.ch + this.lineHeight;
+    this.firstLine = 0;
+    this.lastLine = 0;
+  }
+  measureLineWidths() {
+    let LN = this.textArray.length;
+    this.lineWidths = [];
+    for (let i = 0; i < LN; i++) {
+      this.lineWidths.push(Math.ceil(this.RD.layer.measureText(this.textArray[i]).width));
+    }
+  }
+  process() {
+    let LN = this.textArray.length;
+    this.cursorY -= this.speed;
+
+    if (this.bottomY - this.cursorY >= this.lineHeight * (this.lastLine + 1 - this.firstLine)) {
+      this.lastLine++;
+    }
+    if (this.cursorY <= 0) {
+      this.cursorY = this.lineHeight;
+      this.firstLine++;
+    }
+    if (this.lastLine >= LN) {
+      if (this.firstLine >= LN) {
+        this.reset();
+      } else this.lastLine = LN - 1;
+    }
+
+  }
+  draw() {
+    let CTX = this.RD.layer;
+    ENGINE.clearLayer(this.RD.layerName);
+    for (let i = this.firstLine; i <= this.lastLine; i++) {
+      let actualY = this.cursorY + this.lineHeight * (i - this.firstLine);
+      CTX.fillText(this.textArray[i], this.cursorX, actualY);
+    }
   }
 }
 class MovingText {
@@ -3000,8 +2784,8 @@ class MovingText {
     if (this.last < this.length - 1) {
       while (
         this.cursor +
-          (this.nodes[this.last].offset - this.nodes[this.first].offset) +
-          this.nodes[this.last].width <
+        (this.nodes[this.last].offset - this.nodes[this.first].offset) +
+        this.nodes[this.last].width <
         this.right
       ) {
         this.last++;
@@ -3023,5 +2807,147 @@ class MovingText {
     }
   }
 }
+class Area {
+  constructor(x, y, w, h) {
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+  }
+  gridWithin(grid) {
+    return this.within(grid.x, grid.y);
+  }
+  within(X, Y) {
+    if (
+      X >= this.x &&
+      X < this.x + this.w &&
+      Y >= this.y &&
+      Y < this.y + this.h
+    ) {
+      return true;
+    } else return false;
+  }
+  overlap(area) {
+    if (this.x > area.x + area.w) return false;
+    if (this.x + this.w < area.x) return false;
+    if (this.y > area.y + area.h) return false;
+    if (this.y + this.h < area.y) return false;
+    return true;
+  }
+}
+class Button {
+  constructor(text, area, col, handler) {
+    this.text = text;
+    this.area = area;
+    this.colInfo = col;
+    this.handler = handler;
+  }
+  draw() {
+    let CTX = LAYER[FORM.INI.layer];
+    if (this.colInfo.back) {
+      CTX.fillStyle = this.colInfo.back;
+      CTX.fillRect(this.area.x, this.area.y, this.area.w, this.area.h);
+    }
+    if (this.colInfo.border) {
+      CTX.strokeStyle = this.colInfo.border;
+      CTX.strokeRect(this.area.x, this.area.y, this.area.w, this.area.h);
+    }
+
+    CTX.save();
+    CTX.font = `${this.colInfo.fontSize}px ${FORM.INI.FONT}`;
+    CTX.fillStyle = this.colInfo.ink;
+    let x = FORM.INI.lettButtonPad + this.area.x;
+    let y =
+      this.area.y +
+      this.colInfo.fontSize +
+      Math.round((this.area.h - this.colInfo.fontSize) / 2) -
+      1;
+    if (this.colInfo.inkShadow) {
+      CTX.shadowColor = this.colInfo.inkShadow;
+      CTX.shadowOffsetX = 1;
+      CTX.shadowOffsetY = 1;
+      CTX.shadowBlur = 1;
+    }
+    CTX.fillText(this.text, x, y);
+    CTX.restore();
+  }
+  within() {
+    return this.area.within(ENGINE.mouseX, ENGINE.mouseY);
+  }
+}
+class ColorInfo {
+  constructor(ink, inkShadow, back, border, fontSize) {
+    this.ink = ink;
+    this.inkShadow = inkShadow;
+    this.back = back;
+    this.border = border;
+    this.fontSize = fontSize;
+  }
+}
+class FancyText {
+  constructor(text, x, y, renderData, colors) {
+    this.text = text;
+    this.x = x;
+    this.y = y;
+    this.RD = renderData;
+    this.colors = colors;
+    this.nodes = this.measureNodes();
+    this.colorIndex = 0;
+  }
+  next() {
+    this.colorIndex++;
+    this.colorIndex = Math.abs(this.colorIndex % this.colors.length);
+  }
+  draw() {
+    ENGINE.clearLayer(this.RD.layerName);
+    let LN = this.nodes.length;
+    let CTX = this.RD.layer;
+    for (let q = 0; q < LN; q++) {
+      CTX.fillStyle = this.colors[this.colorIndex];
+      let shadow = Math.abs(this.colorIndex + (1 % this.colors.length));
+      CTX.shadowColor = this.colors[shadow];
+      CTX.fillText(this.nodes[q].char, this.x + this.nodes[q].offset, this.y);
+      this.next();
+    }
+  }
+  measureNodes() {
+    let temp = [];
+    let LN = this.text.length;
+    let start = 0;
+    for (let i = 0; i < LN; i++) {
+      let char = this.text[i];
+      let width = Math.ceil(this.RD.layer.measureText(char).width);
+      temp.push({ char: char, offset: start, width: width });
+      start += width;
+    }
+    return temp;
+  }
+}
+class FPS_measurement {
+  constructor() {
+    this.reset();
+  }
+  reset() {
+    this.count = 0;
+    this.average = 0;
+  }
+  update(fps) {
+    this.average = (this.count * this.average + fps) / ++this.count;
+  }
+  getFps() {
+    return this.average.toFixed(1);
+  }
+}
+var FILTER = {
+  DarkShift(imageData, arg) {
+    let rigthShift = arg.shift;
+    let DATA = imageData.data;
+    for (let pix = 0, LN = DATA.length; pix <= LN; pix += 4) {
+      for (let offset = 0; offset < 3; offset++) {
+        DATA[pix + offset] = DATA[pix + offset] >>> rigthShift;
+      }
+    }
+  }
+};
 //END
 console.log(`%cENGINE ${ENGINE.VERSION} loaded.`, ENGINE.CSS);
